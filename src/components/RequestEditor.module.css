@@ -1,0 +1,165 @@
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+/* ── URL Bar ── */
+.urlBar {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: flex-end;
+}
+
+.urlInput {
+  flex: 1;
+}
+
+.sendBtn {
+  min-width: 100px;
+}
+
+.paramInfo {
+  margin-bottom: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  background: rgba(99, 102, 241, 0.05);
+  border-radius: var(--radius-md);
+  border: 1px dashed rgba(99, 102, 241, 0.2);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.paramLabel {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  margin-right: var(--space-xs);
+}
+
+.paramHint {
+  width: 100%;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* ── Tabs section ── */
+.tabContent {
+  padding: var(--space-lg) 0 0;
+  min-height: 200px;
+}
+
+.tabDescription {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  margin-bottom: var(--space-lg);
+  line-height: 1.5;
+}
+
+.tabDescription code {
+  color: var(--accent);
+  background: rgba(16, 185, 129, 0.1);
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+}
+
+/* ── Body section ── */
+.bodySection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.bodyActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.paramBadge {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--accent-hover);
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+}
+
+/* ── cURL Tab ── */
+.curlSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.curlActions {
+  display: flex;
+  gap: var(--space-sm);
+  justify-content: flex-end;
+}
+
+.curlPreview {
+  background: var(--bg-input);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.previewLabel {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.previewValue {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+.previewRow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* ── Section label ── */
+.sectionLabel {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--space-sm);
+}
+
+/* ── Method row for URL ── */
+.methodRow {
+  margin-bottom: var(--space-lg);
+}
+
+/* ── Loading spinner ── */
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

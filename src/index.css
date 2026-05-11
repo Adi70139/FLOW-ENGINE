@@ -1,0 +1,117 @@
+/* ============================================================
+   MrAutomation — Design System (Green Professional - Light)
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@400;500;600;700&display=swap');
+
+/* ---------- Design Tokens ---------- */
+:root {
+  /* Background layers - Professional Light Mode with Mint hint */
+  --bg-root: #f8fafc;
+  --bg-surface: rgba(255, 255, 255, 0.75);
+  --bg-elevated: #ffffff;
+  --bg-input: #f1f5f9;
+
+  /* Glass tokens (Light mode glass - Emerald tint) */
+  --glass-bg: rgba(255, 255, 255, 0.65);
+  --glass-border: rgba(16, 185, 129, 0.15);
+  --glass-shadow: 0 8px 32px rgba(15, 23, 42, 0.06);
+  --glass-blur: 12px;
+  --glass-inner-glow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+
+  /* Text - Dark for light background */
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --text-inverse: #ffffff;
+
+  /* Brand - Emerald Green theme */
+  --accent: #10b981;
+  --accent-hover: #059669;
+  --accent-glow: rgba(16, 185, 129, 0.1);
+
+  /* Method colors */
+  --method-get: #10b981;
+  --method-post: #0ea5e9;
+  --method-put: #3b82f6;
+  --method-patch: #8b5cf6;
+  --method-delete: #ef4444;
+  --method-head: #64748b;
+
+  /* Status */
+  --status-success: #10b981;
+  --status-warning: #f59e0b;
+  --status-error: #ef4444;
+  --status-info: #0ea5e9;
+
+  /* Borders */
+  --border: rgba(16, 185, 129, 0.12);
+  --border-hover: rgba(16, 185, 129, 0.25);
+  --border-focus: var(--accent);
+
+  /* Spacing */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+  --space-2xl: 32px;
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+
+  /* Fonts */
+  --font-main: 'Outfit', 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Animations */
+  --duration: 0.2s;
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ============================================================
+   Global Reset & Background
+   ============================================================ */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-main);
+  /* Light radial gradient with a touch of mint */
+  background: radial-gradient(circle at 50% 0%, #f0fdf4 0%, #f8fafc 100%);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+/* Selection */
+::selection {
+  background: #dcfce7;
+  color: #065f46;
+}

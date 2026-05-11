@@ -1,0 +1,78 @@
+.dropdown {
+  position: relative;
+  width: 100%;
+}
+
+.control {
+  background: #1e293b;
+  border: 1px solid #334155;
+
+  padding: 12px;
+
+  border-radius: 8px;
+
+  cursor: pointer;
+
+  color: white;
+}
+
+.control:hover {
+  border-color: #475569;
+}
+
+.menu {
+  position: absolute;
+
+  top: calc(100% + 8px);
+
+  left: 0;
+  right: 0;
+
+  background: #111827;
+
+  border: 1px solid #334155;
+
+  border-radius: 10px;
+
+  overflow: hidden;
+
+  z-index: 100;
+}
+
+.search {
+  width: 100%;
+
+  padding: 12px;
+
+  background: #0f172a;
+
+  border: none;
+  border-bottom: 1px solid #334155;
+
+  color: white;
+
+  outline: none;
+}
+
+.options {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.option {
+  padding: 12px;
+
+  cursor: pointer;
+
+  transition: 0.2s;
+}
+
+.option:hover {
+  background: #1e293b;
+}
+
+.empty {
+  padding: 12px;
+
+  color: #94a3b8;
+}

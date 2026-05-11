@@ -1,0 +1,77 @@
+.table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.table th {
+  text-align: left;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 6px 8px 8px;
+}
+
+.table td {
+  padding: 3px 4px;
+}
+
+.table tbody tr {
+  transition: background var(--duration) var(--ease);
+}
+
+.table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.keyCol { width: 35%; }
+.valCol { width: 50%; }
+.toggleCol { width: 8%; text-align: center; }
+.actionCol { width: 7%; text-align: center; }
+
+.cellInput {
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--glass-border);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  outline: none;
+  transition: border-color var(--duration) var(--ease);
+}
+
+.cellInput:focus {
+  border-color: var(--accent);
+}
+
+.cellInput::placeholder {
+  color: var(--text-muted);
+}
+
+/* Disabled row */
+.disabledRow {
+  opacity: 0.35;
+}
+
+.disabledRow .cellInput {
+  text-decoration: line-through;
+}
+
+/* Toggle checkbox */
+.toggle {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* Footer */
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--space-sm) 0 0;
+}

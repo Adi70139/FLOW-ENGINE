@@ -1,0 +1,222 @@
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-sm);
+}
+
+/* ── Collection item ── */
+.collection {
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: all var(--duration) var(--ease);
+}
+
+.collectionHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--duration) var(--ease);
+  border: 1px solid transparent;
+  position: relative;
+}
+
+.collectionHeader:hover {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: var(--glass-border);
+}
+
+.active > .collectionHeader {
+  background: var(--glass-bg);
+  border-color: var(--glass-border);
+  box-shadow: var(--glass-inner-glow);
+}
+
+.chevron {
+  font-size: 10px;
+  color: var(--text-muted);
+  transition: transform var(--duration) var(--ease);
+  flex-shrink: 0;
+  width: 16px;
+  text-align: center;
+}
+
+.chevronOpen {
+  transform: rotate(90deg);
+}
+
+.collectionIcon {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+
+.collectionInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.collectionName {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+
+.collectionMeta {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  margin-top: 1px;
+}
+
+.actions {
+  display: none;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.collectionHeader:hover .actions {
+  display: flex;
+}
+
+.runBtn {
+  background: rgba(34, 197, 94, 0.1);
+  color: var(--status-success);
+}
+
+.deleteBtn {
+  transition: opacity var(--duration) var(--ease);
+}
+
+/* ── Test items nested ── */
+.testItems {
+  padding: 2px 0 6px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+  animation: expandIn var(--duration) var(--ease);
+}
+
+@keyframes expandIn {
+  from { opacity: 0; max-height: 0; }
+  to { opacity: 1; max-height: 500px; }
+}
+
+.testItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  transition: all var(--duration) var(--ease);
+  border: 1px solid transparent;
+}
+
+.testItem:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.activeTest {
+  color: var(--text-primary);
+  background: rgba(99, 102, 241, 0.08);
+  border-color: rgba(99, 102, 241, 0.15);
+}
+
+.testItemName {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Variables Panel ── */
+.variablesPanel {
+  margin-top: auto;
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-md);
+}
+
+.variablesHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 12px var(--space-sm);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.varCount {
+  background: var(--accent-glow);
+  color: var(--accent);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.variablesList {
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: var(--radius-md);
+  padding: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.variableItem {
+  display: flex;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.03);
+}
+
+.varKey {
+  color: var(--accent);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.varVal {
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.varEmpty {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 10px 0;
+}
+
+.spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  display: inline-block;
+  animation: rotate 1s linear infinite;
+}
+
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

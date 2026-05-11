@@ -1,0 +1,314 @@
+/* ============================================================
+   ResponseViewer — Full redesign
+   ============================================================ */
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* ── Section header ── */
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md) 0;
+  border-top: 1px solid var(--border);
+  margin-bottom: var(--space-md);
+}
+
+.sectionTitle {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text-secondary);
+  flex: 1;
+}
+
+/* ── Awaiting ── */
+.awaiting {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-md);
+  padding: var(--space-2xl);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-lg);
+  text-align: center;
+}
+
+.awaitingIcon {
+  font-size: 36px;
+  opacity: 0.4;
+}
+
+.awaitingText {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+/* ── Status bar ── */
+.statusBar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-md);
+  backdrop-filter: blur(8px);
+}
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  border-radius: var(--radius-full);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.statusDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  animation: pulse 2s ease infinite;
+}
+
+.status2xx {
+  background: rgba(34, 197, 94, 0.12);
+  color: var(--status-success);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+.status2xx .statusDot { background: var(--status-success); }
+
+.status3xx {
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--status-info);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+.status3xx .statusDot { background: var(--status-info); }
+
+.status4xx {
+  background: rgba(245, 158, 11, 0.12);
+  color: var(--status-warning);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+.status4xx .statusDot { background: var(--status-warning); }
+
+.status5xx {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--status-error);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+.status5xx .statusDot { background: var(--status-error); }
+
+.status0 {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--status-error);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+.status0 .statusDot { background: var(--status-error); }
+
+/* ── Stat pills ── */
+.divider {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+.statPill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.statIcon {
+  font-size: 13px;
+}
+
+.statValue {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.statusBarRight {
+  margin-left: auto;
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+/* ── Body panel ── */
+.bodyPanel {
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-top: var(--space-sm);
+}
+
+.bodyToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px var(--space-md);
+  background: rgba(255,255,255,0.025);
+  border-bottom: 1px solid var(--border);
+}
+
+.bodyToolbarLeft {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.contentTypeTag {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--accent-hover);
+  background: rgba(99, 102, 241, 0.1);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+}
+
+.lineCountTag {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.bodyScroll {
+  overflow: auto;
+  max-height: 380px;
+  background: rgba(5, 8, 20, 0.5);
+}
+
+.bodyScroll pre {
+  margin: 0;
+  padding: var(--space-lg);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ── JSON syntax colors ── */
+.jsonKey    { color: #93c5fd; }
+.jsonString { color: #86efac; }
+.jsonNumber { color: #fbbf24; }
+.jsonBool   { color: #c084fc; }
+.jsonNull   { color: #94a3b8; }
+
+/* ── Headers table ── */
+.headersPanel {
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-top: var(--space-sm);
+}
+
+.headerRow {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: var(--space-md);
+  padding: 9px var(--space-lg);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  font-size: var(--text-sm);
+  transition: background var(--duration) var(--ease);
+}
+
+.headerRow:last-child {
+  border-bottom: none;
+}
+
+.headerRow:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.headerKey {
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  text-transform: lowercase;
+  word-break: break-word;
+}
+
+.headerValue {
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+.requestPanel {
+  padding: var(--space-md);
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+}
+
+.requestInfo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.requestMeta code {
+  background: var(--glass-bg);
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  color: var(--accent);
+  font-family: var(--font-mono);
+}
+
+.requestHeaders pre, .requestBody pre {
+  background: #1e1e1e;
+  color: #d4d4d4;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+  margin-top: 4px;
+}
+
+.requestHeaders strong, .requestBody strong, .requestMeta strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.headersEmpty {
+  padding: var(--space-xl);
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+/* ── Empty / awaiting ── */
+.empty {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  text-align: center;
+  padding: var(--space-xl);
+}
+
+/* ── pulse animation ── */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}

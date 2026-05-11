@@ -1,0 +1,58 @@
+.methods {
+  display: flex;
+  gap: 4px;
+}
+
+.method {
+  padding: 7px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--glass-border);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--duration) var(--ease);
+  letter-spacing: 0.02em;
+}
+
+.method:hover {
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* Per-method active colors */
+.active { border-color: transparent; }
+
+.get {
+  background: rgba(34, 197, 94, 0.15);
+  color: var(--method-get);
+  border-color: rgba(34, 197, 94, 0.3);
+}
+.post {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--method-post);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+.put {
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--method-put);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+.patch {
+  background: rgba(168, 85, 247, 0.15);
+  color: var(--method-patch);
+  border-color: rgba(168, 85, 247, 0.3);
+}
+.delete {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--method-delete);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+.head {
+  background: rgba(100, 116, 139, 0.15);
+  color: var(--method-head);
+  border-color: rgba(100, 116, 139, 0.3);
+}

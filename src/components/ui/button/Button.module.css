@@ -1,0 +1,114 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  transition: all var(--duration) var(--ease);
+  white-space: nowrap;
+  position: relative;
+  overflow: hidden;
+}
+
+.button::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity var(--duration) var(--ease);
+}
+
+.button:hover::before {
+  opacity: 1;
+}
+
+.button:active {
+  transform: scale(0.97);
+}
+
+.button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* — Primary — */
+.primary {
+  background: linear-gradient(135deg, #34d399 0%, #10b981 100%); /* Light Green to Green */
+  color: #fff;
+  box-shadow: 0 2px 12px var(--accent-glow);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.primary::before {
+  background: linear-gradient(135deg, #6ee7b7 0%, #34d399 100%);
+}
+.primary:hover {
+  box-shadow: 0 4px 24px var(--accent-glow), 0 0 12px rgba(16, 185, 129, 0.15);
+  transform: translateY(-1px);
+}
+
+/* — Secondary — */
+.secondary {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  color: var(--text-primary);
+  backdrop-filter: blur(8px);
+}
+.secondary::before {
+  background: rgba(255, 255, 255, 0.04);
+}
+.secondary:hover {
+  border-color: var(--border-hover);
+}
+
+/* — Ghost — */
+.ghost {
+  background: transparent;
+  color: var(--text-secondary);
+}
+.ghost::before {
+  background: rgba(255, 255, 255, 0.05);
+}
+.ghost:hover {
+  color: var(--text-primary);
+}
+
+/* — Danger — */
+.danger {
+  background: linear-gradient(135deg, var(--status-error), #dc2626);
+  color: #fff;
+  box-shadow: 0 2px 12px rgba(239, 68, 68, 0.3);
+}
+.danger::before {
+  background: linear-gradient(135deg, #f87171, #ef4444);
+}
+
+/* — Sizes — */
+.small {
+  padding: 6px 12px;
+  font-size: var(--text-sm);
+  border-radius: var(--radius-sm);
+}
+.medium {
+  padding: 9px 18px;
+  font-size: var(--text-base);
+}
+.large {
+  padding: 12px 24px;
+  font-size: var(--text-lg);
+}
+
+.fullWidth {
+  width: 100%;
+}
+
+.icon {
+  display: flex;
+  align-items: center;
+  font-size: 1.1em;
+}

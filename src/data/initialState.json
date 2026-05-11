@@ -1,0 +1,67 @@
+{
+  "modules": [
+    {
+      "id": "mod-dummy-auth",
+      "name": "Auth Module",
+      "description": "Authentication and user identity flows.",
+      "flows": [
+        {
+          "id": "flow-dummy-login",
+          "name": "Login Flow",
+          "description": "Sequential steps to login and fetch profile.",
+          "variables": {},
+          "tests": [
+            {
+              "id": "test-dummy-login",
+              "name": "User Login",
+              "description": "POST request to get token",
+              "method": "POST",
+              "endpoint": "https://jsonplaceholder.typicode.com/posts",
+              "headers": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json",
+                  "enabled": true
+                }
+              ],
+              "payload": "{\n  \"username\": \"testuser\",\n  \"password\": \"password123\"\n}",
+              "extract": [
+                {
+                  "key": "userId",
+                  "path": "id"
+                }
+              ],
+              "response": null
+            },
+            {
+              "id": "test-dummy-profile",
+              "name": "Get Profile",
+              "description": "GET request using extracted userId",
+              "method": "GET",
+              "endpoint": "https://jsonplaceholder.typicode.com/users/{{userId}}",
+              "headers": [],
+              "payload": "",
+              "extract": [],
+              "response": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-dummy-data",
+      "name": "Data API",
+      "description": "Public API testing for data fetching.",
+      "flows": []
+    },
+    {
+      "id": "mod-dummy-data",
+      "name": "Data UI",
+      "description": "Public API testing for data fetching.",
+      "flows": []
+    }
+  ],
+  "selectedModuleId": null,
+  "selectedFlowId": null,
+  "selectedTestId": null
+}
