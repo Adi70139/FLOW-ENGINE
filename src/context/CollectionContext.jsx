@@ -1,4 +1,4 @@
-import { createContext, useContext, useReducer, useEffect, useState } from "react";
+import { createContext, useContext, useReducer, useEffect, useRef } from "react";
 import { api, mapStepToTest } from "../utils/api";
 
 const ModuleContext = createContext(null);
@@ -8,8 +8,10 @@ const initialState = {
   selectedModuleId: null,
   selectedFlowId: null,
   selectedStepId: null,
+  selectedEnvId: null,
   loading: false,
   error: null,
+  executions: {}, // { [id]: { status, results, type, startedAt, finishedAt } }
 };
 
 function reducer(state, action) {
@@ -21,9 +23,8 @@ function reducer(state, action) {
     case "SET_STATE":
       return { ...state, ...action.payload, loading: false };
 
-    case "ADD_MODULE": {
+    case "ADD_MODULE":
       return { ...state, modules: [...state.modules, action.module], loading: false };
-    }
 
     case "DELETE_MODULE": {
       const next = state.modules.filter((m) => m.id != action.id);
@@ -33,48 +34,56 @@ function reducer(state, action) {
         selectedModuleId: state.selectedModuleId == action.id ? null : state.selectedModuleId,
       };
     }
-    case "UPDATE_MODULE": {
+
+    case "UPDATE_MODULE":
       return {
         ...state,
-        modules: state.modules.map((m) => m.id == action.id ? { ...m, ...action.patch } : m),
+        modules: state.modules.map((m) =>
+          m.id == action.id ? { ...m, ...action.patch } : m
+        ),
       };
-    }
 
-    case "SELECT_MODULE": {
+    case "SELECT_MODULE":
       return {
         ...state,
         selectedModuleId: action.id,
         selectedFlowId: null,
         selectedStepId: null,
+        selectedEnvId: null,
       };
-    }
 
-    case "SET_FLOWS": {
+    case "SET_FLOWS":
       return {
         ...state,
         modules: state.modules.map((m) =>
-          m.id == action.moduleId ? { 
-            ...m, 
-            flows: (action.flows || []).map(f => ({ ...f, tests: null, stepsLoaded: false })), 
-            flowsLoaded: true 
-          } : m
+          m.id == action.moduleId
+            ? {
+                ...m,
+                flows: (action.flows || []).map((f) => ({
+                  ...f,
+                  tests: null,
+                  stepsLoaded: false,
+                })),
+                flowsLoaded: true,
+              }
+            : m
         ),
       };
-    }
 
-    case "ADD_FLOW": {
+    case "ADD_FLOW":
       return {
         ...state,
         modules: state.modules.map((m) =>
-          m.id == action.moduleId ? { ...m, flows: [...(m.flows || []), { ...action.flow, tests: [] }] } : m
+          m.id == action.moduleId
+            ? { ...m, flows: [...(m.flows || []), { ...action.flow, tests: [] }] }
+            : m
         ),
         selectedFlowId: action.flow.id,
         selectedStepId: null,
         loading: false,
       };
-    }
 
-    case "DELETE_FLOW": {
+    case "DELETE_FLOW":
       return {
         ...state,
         modules: state.modules.map((m) =>
@@ -84,57 +93,55 @@ function reducer(state, action) {
         ),
         selectedFlowId: state.selectedFlowId == action.id ? null : state.selectedFlowId,
       };
-    }
-    case "UPDATE_FLOW": {
+
+    case "UPDATE_FLOW":
       return {
         ...state,
         modules: state.modules.map((m) =>
           m.id == action.moduleId
             ? {
-              ...m,
-              flows: (m.flows || []).map((f) => f.id == action.id ? { ...f, ...action.patch } : f),
-            }
+                ...m,
+                flows: (m.flows || []).map((f) =>
+                  f.id == action.id ? { ...f, ...action.patch } : f
+                ),
+              }
             : m
         ),
       };
-    }
 
-    case "SELECT_FLOW": {
-      return {
-        ...state,
-        selectedFlowId: action.id,
-        selectedStepId: null,
-      };
-    }
+    case "SELECT_FLOW":
+      return { ...state, selectedFlowId: action.id, selectedStepId: null };
 
-    case "SET_STEPS": {
+    case "SET_STEPS":
       return {
         ...state,
         modules: state.modules.map((m) => ({
           ...m,
           flows: (m.flows || []).map((f) =>
-            f.id == action.flowId ? { ...f, tests: action.steps, stepsLoaded: true } : f
+            f.id == action.flowId
+              ? { ...f, tests: action.steps, stepsLoaded: true }
+              : f
           ),
         })),
         selectedStepId: action.steps?.[0]?.id || null,
       };
-    }
 
-    case "ADD_STEP": {
+    case "ADD_STEP":
       return {
         ...state,
         modules: state.modules.map((m) => ({
           ...m,
           flows: (m.flows || []).map((f) =>
-            f.id == action.flowId ? { ...f, tests: [...(f.tests || []), action.step], stepsLoaded: true } : f
+            f.id == action.flowId
+              ? { ...f, tests: [...(f.tests || []), action.step], stepsLoaded: true }
+              : f
           ),
         })),
         selectedStepId: action.step.id,
         loading: false,
       };
-    }
 
-    case "UPDATE_STEP": {
+    case "UPDATE_STEP":
       return {
         ...state,
         modules: state.modules.map((m) => ({
@@ -142,18 +149,17 @@ function reducer(state, action) {
           flows: (m.flows || []).map((f) =>
             f.id == action.flowId
               ? {
-                ...f,
-                tests: (f.tests || []).map((t) =>
-                  t.id == action.stepId ? { ...t, ...action.patch } : t
-                ),
-              }
+                  ...f,
+                  tests: (f.tests || []).map((t) =>
+                    t.id == action.stepId ? { ...t, ...action.patch } : t
+                  ),
+                }
               : f
           ),
         })),
       };
-    }
 
-    case "DELETE_STEP": {
+    case "DELETE_STEP":
       return {
         ...state,
         modules: state.modules.map((m) => ({
@@ -164,23 +170,89 @@ function reducer(state, action) {
               : f
           ),
         })),
-        selectedStepId: state.selectedStepId == action.stepId ? null : state.selectedStepId,
+        selectedStepId:
+          state.selectedStepId == action.stepId ? null : state.selectedStepId,
       };
-    }
 
     case "SELECT_STEP":
       return { ...state, selectedStepId: action.id };
 
-    case "UPDATE_FLOW_VARIABLES": {
+    case "SELECT_ENV":
+      return { ...state, selectedEnvId: action.id };
+
+    case "SET_ENVIRONMENTS":
       return {
         ...state,
-        modules: state.modules.map((m) => ({
-          ...m,
-          flows: (m.flows || []).map((f) =>
-            f.id == action.flowId ? { ...f, variables: { ...f.variables, ...action.variables } } : f
-          ),
-        })),
+        modules: state.modules.map((m) =>
+          m.id == action.moduleId
+            ? { ...m, environments: action.environments, envLoaded: true }
+            : m
+        ),
       };
+
+    case "SET_SCHEDULE":
+      return {
+        ...state,
+        modules: state.modules.map((m) =>
+          m.id == action.moduleId ? { ...m, schedule: action.schedule } : m
+        ),
+      };
+
+    case "EXECUTION_START":
+      return {
+        ...state,
+        executions: {
+          ...state.executions,
+          [action.id]: {
+            status: "running",
+            type: action.execType,
+            total: action.total || 0,
+            startedAt: new Date().toISOString(),
+          },
+        },
+      };
+
+    case "EXECUTION_POLLING":
+      return {
+        ...state,
+        executions: {
+          ...state.executions,
+          [action.id]: {
+            ...state.executions[action.id],
+            pollData: action.pollData,
+          },
+        },
+      };
+
+    case "EXECUTION_END": {
+      const execResult = {
+        id: action.id,
+        status: "done",
+        results: action.results,
+        type: action.execType,
+        finishedAt: new Date().toISOString(),
+      };
+      const nextExecutions = { ...state.executions, [action.id]: execResult };
+
+      // Persist last 50 executions in localStorage history — avoid duplicates
+      try {
+        const history = JSON.parse(localStorage.getItem("mr_auto_history") || "[]");
+        // Use a unique key for matching: type + id + (optional results specific ID)
+        const getUniqueId = (item) => {
+          const resId = item.results?.jobId || item.results?.bulkJobId || item.results?.moduleExecutionId || item.results?.flowExecutionId;
+          return `${item.type}-${item.id}-${resId || ""}`;
+        };
+        const currentUniqueId = getUniqueId(execResult);
+        
+        // Remove existing if it's the same run (unlikely but safe) or if we just want the latest
+        const filtered = history.filter(h => getUniqueId(h) !== currentUniqueId);
+        const newHistory = [execResult, ...filtered].slice(0, 50);
+        localStorage.setItem("mr_auto_history", JSON.stringify(newHistory));
+      } catch (e) {
+        console.error("Failed to save history:", e);
+      }
+
+      return { ...state, executions: nextExecutions };
     }
 
     default:
@@ -190,104 +262,154 @@ function reducer(state, action) {
 
 export function ModuleProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, initialState);
+  const pollingTimers = useRef({});
 
-  // Initial load: Fetch Modules
+  // ── Initial load ──────────────────────────────────────────────────────────
   useEffect(() => {
     async function load() {
-      console.log("Fetching initial modules...");
       dispatch({ type: "FETCH_START" });
       try {
-        const modules = await api.getModules();
-        console.log("Modules loaded:", modules);
+        const modulesData = await api.getModules();
+        
+        // Pre-fetch flows for all modules in parallel for "Total Flow Count" and instant navigation
+        const modulesWithFlows = await Promise.all(
+          modulesData.map(async (m) => {
+            try {
+              const flows = await api.getFlowsByModule(m.name);
+              return {
+                ...m,
+                flows: flows.map(f => ({ ...f, tests: null, stepsLoaded: false })),
+                flowsLoaded: true,
+                environments: [],
+                envLoaded: false,
+                schedule: null,
+              };
+            } catch (e) {
+              return {
+                ...m,
+                flows: null,
+                flowsLoaded: false,
+                environments: [],
+                envLoaded: false,
+                schedule: null,
+              };
+            }
+          })
+        );
+
         dispatch({
           type: "SET_STATE",
-          payload: { modules: modules.map(m => ({ ...m, flows: null, flowsLoaded: false })) }
+          payload: {
+            modules: modulesWithFlows,
+          },
         });
       } catch (error) {
-        console.error("Initial load failed:", error);
         dispatch({ type: "FETCH_ERROR", error: error.message });
       }
     }
     load();
   }, []);
 
-  // Fetch flows when a module is selected
+  // ── Load flows, environments & schedule when module is selected ───────────
   useEffect(() => {
     if (!state.selectedModuleId) return;
+    const mod = state.modules.find((m) => m.id == state.selectedModuleId);
+    if (!mod) return;
 
-    const mod = state.modules.find(m => m.id == state.selectedModuleId);
-    if (mod && !mod.flowsLoaded) {
-      async function loadFlows() {
-        console.log(`Fetching flows for module name "${mod.name}"...`);
+    async function loadModuleData() {
+      if (!mod.flowsLoaded) {
         try {
           const flows = await api.getFlowsByModule(mod.name);
-          console.log(`Flows for module "${mod.name}":`, flows);
           dispatch({ type: "SET_FLOWS", moduleId: mod.id, flows });
-        } catch (error) {
-          console.error("Failed to load flows:", error);
-          try {
-            const allFlows = await api.getFlows();
-            const filtered = allFlows.filter(f => f.module === mod.name || String(f.moduleId) === String(mod.id));
-            dispatch({ type: "SET_FLOWS", moduleId: state.selectedModuleId, flows: filtered });
-          } catch (e) {
-            console.error("Global flow fallback failed:", e);
-            dispatch({ type: "SET_FLOWS", moduleId: state.selectedModuleId, flows: [] });
-          }
+        } catch (e) {
+          console.error("Failed to load flows:", e);
         }
       }
-      loadFlows();
+      if (!mod.envLoaded) {
+        try {
+          const envs = await api.getModuleEnvironments(mod.id);
+          dispatch({ type: "SET_ENVIRONMENTS", moduleId: mod.id, environments: envs });
+        } catch (e) {
+          console.error("Failed to load environments:", e);
+        }
+      }
+      if (!mod.schedule) {
+        try {
+          const schedule = await api.getModuleSchedule(mod.id);
+          dispatch({ type: "SET_SCHEDULE", moduleId: mod.id, schedule });
+        } catch (e) {
+          // 404 is expected when no schedule is set
+        }
+      }
     }
+    loadModuleData();
   }, [state.selectedModuleId, state.modules]);
 
-  // Fetch steps when a flow is selected
+  // ── Load steps when flow is selected ─────────────────────────────────────
   useEffect(() => {
     if (!state.selectedFlowId) return;
-
-    const mod = state.modules.find(m => m.id == state.selectedModuleId);
-    const flow = mod?.flows?.find(f => f.id == state.selectedFlowId);
-
+    const mod = state.modules.find((m) => m.id == state.selectedModuleId);
+    const flow = mod?.flows?.find((f) => f.id == state.selectedFlowId);
     if (flow && !flow.stepsLoaded) {
-      async function loadSteps() {
-        console.log(`Fetching steps for flow ${state.selectedFlowId}...`);
-        try {
-          const steps = await api.getSteps(state.selectedFlowId);
-          const tests = steps.map(mapStepToTest);
-          dispatch({ type: "SET_STEPS", flowId: state.selectedFlowId, steps: tests });
-        } catch (error) {
-          console.error("Failed to load steps:", error);
-          dispatch({ type: "SET_STEPS", flowId: state.selectedFlowId, steps: flow.tests || [] });
-        }
-      }
-      loadSteps();
+      api
+        .getSteps(state.selectedFlowId)
+        .then((steps) => {
+          dispatch({
+            type: "SET_STEPS",
+            flowId: state.selectedFlowId,
+            steps: steps.map(mapStepToTest),
+          });
+        })
+        .catch((e) => console.error("Failed to load steps:", e));
     }
   }, [state.selectedFlowId, state.selectedModuleId, state.modules]);
 
   return (
-    <ModuleContext.Provider value={{ state, dispatch }}>
+    <ModuleContext.Provider value={{ state, dispatch, pollingTimers }}>
       {children}
     </ModuleContext.Provider>
   );
 }
 
+// ─── Hook ─────────────────────────────────────────────────────────────────────
+
 export function useModules() {
   const ctx = useContext(ModuleContext);
   if (!ctx) throw new Error("useModules must be used within ModuleProvider");
 
-  const { state, dispatch } = ctx;
+  const { state, dispatch, pollingTimers } = ctx;
   const modules = state?.modules || [];
 
   const selectedModule = modules.find((m) => m.id == state.selectedModuleId);
   const selectedFlow = selectedModule?.flows?.find((f) => f.id == state.selectedFlowId);
   const selectedStep = selectedFlow?.tests?.find((t) => t.id == state.selectedStepId);
+  const selectedEnv = selectedModule?.environments?.find((e) => e.id == state.selectedEnvId);
+
+  // ── Module methods ────────────────────────────────────────────────────────
 
   const addModule = async (name, description) => {
     dispatch({ type: "FETCH_START" });
     try {
       const newMod = await api.createModule({ name, description });
-      dispatch({ type: "ADD_MODULE", module: { ...newMod, flows: [] } });
+      dispatch({
+        type: "ADD_MODULE",
+        module: { ...newMod, flows: [], environments: [], schedule: null },
+      });
       return newMod;
     } catch (error) {
       dispatch({ type: "FETCH_ERROR", error: error.message });
+      throw error;
+    }
+  };
+
+  /** FIX: updateModule was called in LandingPage but missing from context + original api.js */
+  const updateModule = async (id, data) => {
+    try {
+      const updated = await api.updateModule(id, data);
+      dispatch({ type: "UPDATE_MODULE", id, patch: data });
+      return updated;
+    } catch (error) {
+      console.error("Failed to update module:", error);
       throw error;
     }
   };
@@ -301,25 +423,115 @@ export function useModules() {
     }
   };
 
-  const updateModule = async (id, data) => {
+  // ── Environment methods ───────────────────────────────────────────────────
+
+  const addEnvironment = async (moduleId, data) => {
     try {
-      await api.updateModule(id, data);
-      dispatch({ type: "UPDATE_MODULE", id, patch: data });
+      const newEnv = await api.createEnvironment(moduleId, data);
+      const envs = [...(selectedModule?.environments || []), newEnv];
+      dispatch({ type: "SET_ENVIRONMENTS", moduleId, environments: envs });
+      return newEnv;
     } catch (error) {
-      console.error(error);
+      console.error("Failed to add environment:", error);
+      throw error;
     }
   };
 
-  const addFlow = async (moduleId, name, description) => {
-    let mod = modules.find(m => m.id == moduleId);
-    if (!mod && modules.length > 0) mod = modules[0];
+  const updateEnvironment = async (moduleId, envId, data) => {
+    try {
+      const updated = await api.updateEnvironment(moduleId, envId, data);
+      const envs = (selectedModule?.environments || []).map((e) =>
+        e.id == envId ? updated : e
+      );
+      dispatch({ type: "SET_ENVIRONMENTS", moduleId, environments: envs });
+    } catch (error) {
+      console.error("Failed to update environment:", error);
+      throw error;
+    }
+  };
+
+  /** FIX: deleteEnvironment was used in EnvironmentModal but missing from useModules() return */
+  const deleteEnvironment = async (moduleId, envId) => {
+    try {
+      await api.deleteEnvironment(moduleId, envId);
+      const envs = (selectedModule?.environments || []).filter((e) => e.id != envId);
+      dispatch({ type: "SET_ENVIRONMENTS", moduleId, environments: envs });
+    } catch (error) {
+      console.error("Failed to delete environment:", error);
+      throw error;
+    }
+  };
+
+  // ── Schedule methods ──────────────────────────────────────────────────────
+
+  const updateSchedule = async (moduleId, data) => {
+    try {
+      const schedule = await api.setModuleSchedule(moduleId, data);
+      dispatch({ type: "SET_SCHEDULE", moduleId, schedule });
+    } catch (error) {
+      console.error("Failed to update schedule:", error);
+      throw error;
+    }
+  };
+
+  const deleteSchedule = async (moduleId) => {
+    try {
+      await api.deleteModuleSchedule(moduleId);
+      dispatch({ type: "SET_SCHEDULE", moduleId, schedule: null });
+    } catch (error) {
+      console.error("Failed to delete schedule:", error);
+      throw error;
+    }
+  };
+
+  // ── Flow methods ──────────────────────────────────────────────────────────
+
+  const addFlow = async (moduleId, name, description, environmentId) => {
+    const mod = modules.find((m) => m.id == moduleId);
     if (!mod) return;
     try {
-      const newFlow = await api.createFlow({ name, description }, mod.name);
+      const newFlow = await api.createFlow({ name, description, environmentId }, mod.name);
       dispatch({ type: "ADD_FLOW", moduleId: mod.id, flow: newFlow });
       return newFlow;
     } catch (error) {
       console.error("Failed to create flow:", error);
+      throw error;
+    }
+  };
+
+  const importFlow = async (moduleId, file, flowName) => {
+    dispatch({ type: "FETCH_START" });
+    try {
+      const newFlow = await api.importPostman(file, flowName, moduleId);
+      dispatch({ type: "ADD_FLOW", moduleId, flow: newFlow });
+      return newFlow;
+    } catch (error) {
+      dispatch({ type: "FETCH_ERROR", error: error.message });
+      throw error;
+    }
+  };
+
+  /** FIX: updateFlow was missing from useModules() return */
+  const updateFlow = async (moduleId, flowId, data) => {
+    const mod = modules.find((m) => m.id == moduleId);
+    if (!mod) return;
+    try {
+      const updated = await api.updateFlow(flowId, data, mod.name);
+      dispatch({ type: "UPDATE_FLOW", moduleId, id: flowId, patch: data });
+      return updated;
+    } catch (error) {
+      console.error("Failed to update flow:", error);
+      throw error;
+    }
+  };
+
+  const duplicateFlow = async (moduleId, flowId, name) => {
+    try {
+      const newFlow = await api.duplicateFlow(flowId, { name, targetModuleId: moduleId });
+      dispatch({ type: "ADD_FLOW", moduleId, flow: newFlow });
+      return newFlow;
+    } catch (error) {
+      console.error("Failed to duplicate flow:", error);
       throw error;
     }
   };
@@ -333,28 +545,156 @@ export function useModules() {
     }
   };
 
-  const updateFlow = async (moduleId, flowId, data) => {
-    const mod = modules.find(m => m.id == moduleId);
-    if (!mod) return;
+  /** Assign or clear env on a flow, then update local state */
+  const setFlowEnvironment = async (flowId, envId) => {
     try {
-      await api.updateFlow(flowId, data, mod.name);
-      dispatch({ type: "UPDATE_FLOW", moduleId, id: flowId, patch: data });
+      if (envId) {
+        await api.updateFlowEnv(flowId, envId);
+      } else {
+        await api.clearFlowEnv(flowId);
+      }
+      dispatch({
+        type: "UPDATE_FLOW",
+        moduleId: state.selectedModuleId,
+        id: flowId,
+        patch: { environmentId: envId || null },
+      });
     } catch (error) {
-      console.error(error);
+      console.error("Failed to set flow environment:", error);
+      throw error;
     }
   };
 
-  const addStep = async (flowId, stepData) => {
-    let flow;
-    if (state.selectedModuleId) {
-      const mod = modules.find(m => m.id == state.selectedModuleId);
-      flow = mod?.flows?.find(f => f.id == flowId);
-    } else {
-      for (const m of modules) {
-        flow = m.flows?.find(f => f.id == flowId);
-        if (flow) break;
-      }
+  const fetchFlows = async (moduleId) => {
+    if (!moduleId) return;
+    const mod = modules.find((m) => m.id == moduleId);
+    if (!mod) return;
+    try {
+      const flows = await api.getFlowsByModule(mod.name);
+      dispatch({ type: "SET_FLOWS", moduleId, flows });
+    } catch (e) {
+      console.error(e);
     }
+  };
+
+  // ── Execution methods ─────────────────────────────────────────────────────
+
+  const executeFlow = async (flowId, envId) => {
+    dispatch({ type: "EXECUTION_START", id: flowId, execType: "flow" });
+    try {
+      const results = await api.executeFlow(flowId, envId);
+      dispatch({ type: "EXECUTION_END", id: flowId, results, execType: "flow" });
+      return results;
+    } catch (error) {
+      dispatch({
+        type: "EXECUTION_END",
+        id: flowId,
+        results: { error: error.message },
+        execType: "flow",
+      });
+      throw error;
+    }
+  };
+
+  const executeModule = async (moduleId, envId) => {
+    dispatch({ type: "EXECUTION_START", id: moduleId, execType: "module" });
+    try {
+      const results = await api.executeModule(moduleId, envId);
+      dispatch({ type: "EXECUTION_END", id: moduleId, results, execType: "module" });
+      return results;
+    } catch (error) {
+      dispatch({
+        type: "EXECUTION_END",
+        id: moduleId,
+        results: { error: error.message },
+        execType: "module",
+      });
+      throw error;
+    }
+  };
+
+  /**
+   * FIX: executeBulk previously just fired and forgot.
+   * Now it polls getBulkJobStatus until the job completes,
+   * dispatching EXECUTION_POLLING updates along the way.
+   */
+  const executeBulkWithPolling = async (type, ids, envIds) => {
+    dispatch({ type: "EXECUTION_START", id: "bulk", execType: "bulk", total: ids.length });
+    try {
+      const job = await api.executeBulk(type, ids, envIds);
+      const jobId = job?.jobId || job?.id || job?.bulkJobId;
+
+      if (!jobId) {
+        // API returned synchronously — no polling needed
+        dispatch({ type: "EXECUTION_END", id: "bulk", results: job, execType: "bulk" });
+        return job;
+      }
+
+      // Poll until terminal state
+      return await new Promise((resolve, reject) => {
+        let attempts = 0;
+        const MAX_ATTEMPTS = 60; // 60 × 3s = 3 min max
+
+        const poll = async () => {
+          attempts++;
+          try {
+            const status = await api.getBulkJobStatus(jobId);
+            dispatch({ type: "EXECUTION_POLLING", id: "bulk", pollData: status });
+
+            const s = (status?.status || "").toUpperCase();
+            const isTerminal = ["COMPLETED", "PASSED", "FAILED", "ERROR", "SUCCESS", "PARTIAL_FAIL"].includes(s);
+            
+            if (isTerminal) {
+              dispatch({
+                type: "EXECUTION_END",
+                id: "bulk",
+                results: { ...status, jobId },
+                execType: "bulk",
+              });
+              resolve(status);
+              return;
+            }
+
+            if (attempts >= MAX_ATTEMPTS) {
+              dispatch({
+                type: "EXECUTION_END",
+                id: "bulk",
+                results: { error: "Timed out waiting for bulk job", jobId },
+                execType: "bulk",
+              });
+              reject(new Error("Bulk job timed out"));
+              return;
+            }
+
+            pollingTimers.current["bulk"] = setTimeout(poll, 3000);
+          } catch (err) {
+            dispatch({
+              type: "EXECUTION_END",
+              id: "bulk",
+              results: { error: err.message, jobId },
+              execType: "bulk",
+            });
+            reject(err);
+          }
+        };
+
+        pollingTimers.current["bulk"] = setTimeout(poll, 2000);
+      });
+    } catch (error) {
+      dispatch({
+        type: "EXECUTION_END",
+        id: "bulk",
+        results: { error: error.message },
+        execType: "bulk",
+      });
+      throw error;
+    }
+  };
+
+  // ── Step methods ──────────────────────────────────────────────────────────
+
+  const addStep = async (flowId, stepData) => {
+    const flow = selectedModule?.flows?.find((f) => f.id == flowId);
     const index = flow?.tests?.length || 0;
     try {
       const newStep = await api.createStep(flowId, stepData, index);
@@ -368,17 +708,8 @@ export function useModules() {
   };
 
   const updateStep = async (flowId, stepId, patch) => {
-    let flow;
-    if (state.selectedModuleId) {
-      const mod = modules.find(m => m.id == state.selectedModuleId);
-      flow = mod?.flows?.find(f => f.id == flowId);
-    } else {
-      for (const m of modules) {
-        flow = m.flows?.find(f => f.id == flowId);
-        if (flow) break;
-      }
-    }
-    const step = flow?.tests?.find(t => t.id == stepId);
+    const flow = selectedModule?.flows?.find((f) => f.id == flowId);
+    const step = flow?.tests?.find((t) => t.id == stepId);
     if (!step) return;
     const updated = { ...step, ...patch };
     const index = (step.stepOrder || 1) - 1;
@@ -399,52 +730,68 @@ export function useModules() {
     }
   };
 
-  const fetchFlows = async (moduleId) => {
-    if (!moduleId) return;
-    const mod = modules.find(m => m.id == moduleId);
-    if (!mod) return;
-    try {
-      console.log(`Manually fetching flows for module name "${mod.name}"...`);
-      const flows = await api.getFlowsByModule(mod.name);
-      dispatch({ type: "SET_FLOWS", moduleId, flows });
-    } catch (error) {
-      console.error("Manual flow fetch failed:", error);
-    }
-  };
-
   const fetchSteps = async (flowId) => {
     if (!flowId) return;
     try {
-      console.log(`Manually fetching steps for flow ${flowId}...`);
       const steps = await api.getSteps(flowId);
-      const tests = steps.map(mapStepToTest);
-      dispatch({ type: "SET_STEPS", flowId, steps: tests });
-    } catch (error) {
-      console.error("Manual step fetch failed:", error);
+      dispatch({
+        type: "SET_STEPS",
+        flowId,
+        steps: steps.map(mapStepToTest),
+      });
+    } catch (e) {
+      console.error(e);
     }
   };
 
   return {
+    // State
     modules,
     loading: state.loading,
     error: state.error,
     selectedModuleId: state.selectedModuleId,
     selectedFlowId: state.selectedFlowId,
     selectedStepId: state.selectedStepId,
+    selectedEnvId: state.selectedEnvId,
     selectedModule,
     selectedFlow,
     selectedStep,
+    selectedEnv,
+    executions: state.executions,
     dispatch,
+
+    // Module
     addModule,
-    updateModule,
+    updateModule,       // FIX: was missing
     deleteModule,
+
+    // Environment
+    addEnvironment,
+    updateEnvironment,
+    deleteEnvironment,  // FIX: was missing
+
+    // Schedule
+    updateSchedule,
+    deleteSchedule,
+
+    // Flow
     addFlow,
-    updateFlow,
+    updateFlow,         // FIX: was missing
+    duplicateFlow,
     deleteFlow,
+    setFlowEnvironment, // NEW: PUT/DELETE /flows/:id/environment/:envId
+    fetchFlows,
+
+    // Execution
+    executeFlow,
+    executeModule,
+    executeBulkWithPolling, // FIX: replaces fire-and-forget executeBulk
+
+    // Steps
     addStep,
     updateStep,
     deleteStep,
-    fetchFlows,
     fetchSteps,
+    importFlow,
   };
 }

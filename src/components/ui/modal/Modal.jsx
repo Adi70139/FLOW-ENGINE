@@ -1,16 +1,23 @@
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
 import styles from "./Modal.module.css";
 
 function Modal({ title, children, onClose, size }) {
   useEffect(() => {
     const onKey = (e) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    // Prevent scrolling on the body while modal is open
+    document.body.style.overflow = "hidden";
+    
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "unset";
+    };
   }, [onClose]);
 
   const sizeClass = size === "lg" ? styles.lg : size === "sm" ? styles.sm : "";
 
-  return (
+  const modalContent = (
     <div className={styles.backdrop} onClick={onClose}>
       <div
         className={`${styles.modal} ${sizeClass}`}
@@ -26,6 +33,8 @@ function Modal({ title, children, onClose, size }) {
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }
 
 export default Modal;

@@ -65,5 +65,65 @@
 .right {
   display: flex;
   align-items: center;
+  gap: var(--space-lg);
+}
+
+.controls {
+  display: flex;
+  align-items: center;
   gap: var(--space-md);
+}
+
+.envSelector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  height: 36px;
+}
+
+.envLabel {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.select {
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  padding-right: 4px;
+}
+
+.iconBtn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.iconBtn:hover {
+  color: var(--accent);
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.divider {
+  width: 1px;
+  height: 24px;
+  background: var(--border);
+  margin: 0 4px;
 }

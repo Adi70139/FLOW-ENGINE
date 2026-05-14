@@ -1,4 +1,3 @@
-// const BASE_URL = "http://localhost:8060";
 const BASE_URL = "https://api-orchestration.onrender.com";
 
 async function request(path, options = {}) {
@@ -24,36 +23,38 @@ async function request(path, options = {}) {
   }
 
   if (!response.ok) {
-    // If backend returns field-level validation errors
-    const errorMsg = typeof data === 'object' && !data.error
-      ? Object.entries(data).map(([k, v]) => `${k}: ${v}`).join(", ")
-      : data.error || "Something went wrong";
+    const errorMsg =
+      typeof data === "object" && !data.error
+        ? Object.entries(data).map(([k, v]) => `${k}: ${v}`).join(", ")
+        : data.error || "Something went wrong";
     throw new Error(errorMsg);
   }
   return data;
 }
 
-/**
- * Mapper: Frontend Test -> Backend Step
- */
+// ─── Mappers ─────────────────────────────────────────────────────────────────
+
+/** Frontend Test shape → Backend Step body */
 export const mapTestToStep = (test, index) => ({
   name: test.name,
-  // description: test.description || "", // Assuming backend supports it now
+  description: test.description || "",
   stepOrder: index + 1,
   method: test.method || "GET",
-  url: test.endpoint || "https://api.example.com", // Default placeholder to prevent 'must not be blank'
-  headersJson: test.headers && test.headers.length > 0 ? JSON.stringify(
-    test.headers.reduce((acc, h) => {
-      if (h.key && h.enabled !== false) acc[h.key] = h.value;
-      return acc;
-    }, {})
-  ) : null,
+  url: test.endpoint || "https://api.example.com",
+  headersJson:
+    test.headers && test.headers.length > 0
+      ? JSON.stringify(
+          test.headers.reduce((acc, h) => {
+            if (h.key && h.enabled !== false) acc[h.key] = h.value;
+            return acc;
+          }, {})
+        )
+      : null,
   bodyJson: test.payload || null,
+  assertions: test.assertions || null,
 });
 
-/**
- * Mapper: Backend Step -> Frontend Test
- */
+/** Backend Step → Frontend Test shape */
 export const mapStepToTest = (step) => ({
   id: step.id,
   name: step.name,
@@ -62,78 +63,192 @@ export const mapStepToTest = (step) => ({
   endpoint: step.url,
   headers: (() => {
     try {
-      return step.headersJson ? Object.entries(JSON.parse(step.headersJson)).map(([key, value]) => ({
-        key, value, enabled: true
-      })) : [];
+      return step.headersJson
+        ? Object.entries(JSON.parse(step.headersJson)).map(([key, value]) => ({
+            key,
+            value,
+            enabled: true,
+          }))
+        : [];
     } catch (e) {
       console.warn("Failed to parse headersJson:", step.headersJson);
       return [];
     }
   })(),
-  payload: step.bodyJson || "",
-  stepOrder: step.stepOrder,
-  requiredParams: step.requiredParams || null,
-  extract: [], // Backend auto-extracts, so we don't need local rules anymore
-  response: null,
+  payload: step.bodyJson,
+  assertions: step.assertionsJson ? JSON.parse(step.assertionsJson) : null,
 });
 
+// ─── API ──────────────────────────────────────────────────────────────────────
+
 export const api = {
-  // Modules
+  // ── Modules ──────────────────────────────────────────────────────────────
   getModules: () => request("/modules"),
-  createModule: (data) => request("/modules", {
-    method: "POST",
-    body: JSON.stringify({
-      name: data.name,
-      description: data.description
-    }),
-  }),
-  updateModule: (id, data) => request(`/modules/${id}`, {
-    method: "PUT",
-    body: JSON.stringify({
-      name: data.name,
-      description: data.description
-    }),
-  }),
+  getModule: (id) => request(`/modules/${id}`),
+  createModule: (data) =>
+    request("/modules", { method: "POST", body: JSON.stringify(data) }),
+  /** FIX: was missing from original api.js — UpdateModuleModal needs this */
+  updateModule: (id, data) =>
+    request(`/modules/${id}`, { method: "PUT", body: JSON.stringify(data) }),
   deleteModule: (id) => request(`/modules/${id}`, { method: "DELETE" }),
 
-  // Flows
+  // ── Flows ─────────────────────────────────────────────────────────────────
   getFlows: () => request("/flows"),
-  // Flows By Module (if supported, otherwise this might fail)
-  // Flows By Module (uses name as per FlowController.java)
-  getFlowsByModule: (moduleName) => request(`/flows/module/${encodeURIComponent(moduleName)}`),
-  createFlow: (data, moduleName) => request("/flows", {
-    method: "POST",
-    body: JSON.stringify({
-      name: data.name,
-      description: data.description,
-      module: moduleName
+  getFlow: (id) => request(`/flows/${id}`),
+  getFlowsByModule: (moduleName) =>
+    request(`/flows/module/${encodeURIComponent(moduleName)}`),
+  createFlow: (data, moduleName) =>
+    request("/flows", {
+      method: "POST",
+      body: JSON.stringify({
+        name: data.name,
+        description: data.description,
+        module: moduleName,
+        environmentId: data.environmentId,
+      }),
     }),
-  }),
-  updateFlow: (id, data, moduleName) => request(`/flows/${id}`, {
-    method: "PUT",
-    body: JSON.stringify({
-      name: data.name,
-      description: data.description,
-      module: moduleName
+  updateFlow: (id, data, moduleName) =>
+    request(`/flows/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({
+        name: data.name,
+        description: data.description,
+        module: moduleName,
+      }),
     }),
-  }),
   deleteFlow: (id) => request(`/flows/${id}`, { method: "DELETE" }),
+  duplicateFlow: (id, data) =>
+    request(`/flows/${id}/duplicate`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  /** PUT /flows/:id/environment/:envId — assign an environment to a flow */
+  updateFlowEnv: (id, envId) =>
+    request(`/flows/${id}/environment/${envId}`, { method: "PUT" }),
+  /** DELETE /flows/:id/environment — clear environment from a flow */
+  clearFlowEnv: (id) =>
+    request(`/flows/${id}/environment`, { method: "DELETE" }),
 
-  // Steps
+  // ── Steps ─────────────────────────────────────────────────────────────────
   getSteps: (flowId) => request(`/flows/${flowId}/steps`),
-  createStep: (flowId, test, index) => request(`/flows/${flowId}/steps`, {
-    method: "POST",
-    body: JSON.stringify(mapTestToStep(test, index)),
-  }),
-  updateStep: (flowId, stepId, test, index) => request(`/flows/${flowId}/steps/${stepId}`, {
-    method: "PUT",
-    body: JSON.stringify(mapTestToStep(test, index)),
-  }),
-  deleteStep: (flowId, stepId) => request(`/flows/${flowId}/steps/${stepId}`, {
-    method: "DELETE"
-  }),
+  getStep: (flowId, stepId) => request(`/flows/${flowId}/steps/${stepId}`),
+  createStep: (flowId, test, index) =>
+    request(`/flows/${flowId}/steps`, {
+      method: "POST",
+      body: JSON.stringify(mapTestToStep(test, index)),
+    }),
+  updateStep: (flowId, stepId, test, index) =>
+    request(`/flows/${flowId}/steps/${stepId}`, {
+      method: "PUT",
+      body: JSON.stringify(mapTestToStep(test, index)),
+    }),
+  deleteStep: (flowId, stepId) =>
+    request(`/flows/${flowId}/steps/${stepId}`, { method: "DELETE" }),
 
-  // Execution
-  executeFlow: (flowId) => request(`/execute/flows/${flowId}`, { method: "POST" }),
-  executeModule: (moduleId) => request(`/execute/modules/${moduleId}`, { method: "POST" }),
+  // ── Environments ──────────────────────────────────────────────────────────
+  getModuleEnvironments: (moduleId) =>
+    request(`/modules/${moduleId}/environments`),
+  getEnvironment: (moduleId, envId) =>
+    request(`/modules/${moduleId}/environments/${envId}`),
+  createEnvironment: (moduleId, data) =>
+    request(`/modules/${moduleId}/environments`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  updateEnvironment: (moduleId, envId, data) =>
+    request(`/modules/${moduleId}/environments/${envId}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+  deleteEnvironment: (moduleId, envId) =>
+    request(`/modules/${moduleId}/environments/${envId}`, { method: "DELETE" }),
+
+  // ── Scheduler ─────────────────────────────────────────────────────────────
+  getModuleSchedule: (moduleId) => request(`/schedule/modules/${moduleId}`),
+  /** POST /schedule/modules/:moduleId  body: { cronExpression, envId? } */
+  setModuleSchedule: (moduleId, data) =>
+    request(`/schedule/modules/${moduleId}`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  deleteModuleSchedule: (moduleId) =>
+    request(`/schedule/modules/${moduleId}`, { method: "DELETE" }),
+
+  // ── Execution ─────────────────────────────────────────────────────────────
+  executeFlow: (flowId, envId) =>
+    request(`/execute/flows/${flowId}`, {
+      method: "POST",
+      body: JSON.stringify({ environmentId: envId ? parseInt(envId) : null }),
+    }),
+  /** POST /execute/modules/:moduleId?envId=... */
+  executeModule: (moduleId, envId) => {
+    const url = envId
+      ? `/execute/modules/${moduleId}?envId=${envId}`
+      : `/execute/modules/${moduleId}`;
+    return request(url, { method: "POST" });
+  },
+  /** POST /execute/modules/bulk  body: { ids, envIds? } */
+  executeBulkModules: (ids, envIds) =>
+    request("/execute/modules/bulk", {
+      method: "POST",
+      body: JSON.stringify({ ids, envIds }),
+    }),
+  /** POST /execute/flows/bulk  body: { ids, envIds? } */
+  executeBulkFlows: (ids, envIds) =>
+    request("/execute/flows/bulk", {
+      method: "POST",
+      body: JSON.stringify({ ids, envIds }),
+    }),
+  /** Convenience: picks endpoint by type ('module'|'flow') */
+  executeBulk: (type, ids, envIds) => {
+    const path =
+      type === "module" ? "/execute/modules/bulk" : "/execute/flows/bulk";
+    return request(path, {
+      method: "POST",
+      body: JSON.stringify({
+        ids: (ids || []).map(id => parseInt(id)),
+        envIds: (envIds || []).map(id => parseInt(id))
+      }),
+    });
+  },
+  /** GET /execute/bulk/:bulkJobId — poll job status */
+  getBulkJobStatus: (bulkJobId) => request(`/execute/bulk/${bulkJobId}`),
+
+  // ── Reports — PDF download URLs ───────────────────────────────────────────
+  getFlowReport: (flowExecutionId) =>
+    `${BASE_URL}/report/flows/${flowExecutionId}`,
+  getModuleReport: (moduleExecutionId) =>
+    `${BASE_URL}/report/module-executions/${moduleExecutionId}`,
+  getBulkReport: (bulkJobId) => `${BASE_URL}/report/bulk/${bulkJobId}`,
+
+  // ── Reports — JSON data ───────────────────────────────────────────────────
+  /** GET /report/flows/:flowExecutionId/data */
+  getFlowReportData: (flowExecutionId) =>
+    request(`/report/flows/${flowExecutionId}/data`),
+  /** GET /report/module-executions/:moduleExecutionId/data */
+  getModuleReportData: (moduleExecutionId) =>
+    request(`/report/module-executions/${moduleExecutionId}/data`),
+  /** GET /report/bulk/:bulkJobId/data */
+  getBulkReportData: (bulkJobId) =>
+    request(`/report/bulk/${bulkJobId}/data`),
+
+  // ── Import ────────────────────────────────────────────────────────────────
+  /** POST /import/postman  multipart: { file, flowName, moduleId } */
+  importPostman: (file, flowName, moduleId) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("flowName", flowName);
+    formData.append("moduleId", moduleId);
+
+    // NOTE: For multipart/form-data, we must NOT set Content-Type manually
+    // because the browser needs to set the boundary.
+    return fetch(`${BASE_URL}/import/postman`, {
+      method: "POST",
+      body: formData,
+    }).then(async (res) => {
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Import failed");
+      return data;
+    });
+  },
 };

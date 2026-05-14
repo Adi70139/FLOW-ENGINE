@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { api } from "../utils/api";
+import { useModules } from "../context/CollectionContext";
 import Tabs from "./ui/tabs/Tabs";
 import Button from "./ui/button/Button";
 import styles from "./ResponseViewer.module.css";
@@ -10,6 +12,7 @@ const RESPONSE_TABS = [
 ];
 
 function ResponseViewer({ response }) {
+  const { selectedFlowId } = useModules();
   const [activeTab, setActiveTab] = useState("body");
   const [copied, setCopied] = useState(false);
 
@@ -130,6 +133,14 @@ function ResponseViewer({ response }) {
         )}
 
         <div className={styles.statusBarRight}>
+          <Button 
+            variant="secondary" 
+            size="small" 
+            onClick={() => window.open(api.getFlowReport(selectedFlowId), "_blank")}
+            title="Download PDF execution report"
+          >
+            PDF Report
+          </Button>
           <Button variant="ghost" size="small" onClick={handleCopy}>
             {copied ? "✓ Copied" : "📋 Copy"}
           </Button>

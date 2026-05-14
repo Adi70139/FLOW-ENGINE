@@ -1,0 +1,406 @@
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useModules } from "../context/CollectionContext";
+import { api } from "../utils/api";
+import Button from "./ui/button/Button";
+import EmptyState from "./ui/empty-state/EmptyState";
+import Badge from "./ui/badge/Badge";
+import { IconBack, IconModule, IconFlow, IconReport, IconChevron } from "./ui/icons/Icons";
+import styles from "./Report.module.css";
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+function statusVariant(status = "") {
+  const s = String(status).toUpperCase();
+  if (s === "PASSED" || s === "SUCCESS" || s === "COMPLETED") return "success";
+  if (s === "FAILED" || s === "FAIL" || s === "ERROR" || s === "PARTIAL_FAIL") return "danger";
+  if (s === "RUNNING" || s === "IN_PROGRESS") return "warning";
+  return "default";
+}
+
+function fmtMs(ms) {
+  if (!ms && ms !== 0) return "—";
+  if (ms < 1000) return `${ms}ms`;
+  return `${(ms / 1000).toFixed(2)}s`;
+}
+
+function fmtDate(iso) {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleString([], {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+  } catch { return iso; }
+}
+
+function tryFormatJson(json) {
+  if (!json) return "—";
+  try {
+    const obj = typeof json === "string" ? JSON.parse(json) : json;
+    return JSON.stringify(obj, null, 2);
+  } catch { return String(json); }
+}
+
+// ─── Sub-components ─────────────────────────────────────────────────────────
+
+function StatCard({ label, value, sub, variant }) {
+  return (
+    <div className={`${styles.card} ${variant ? styles[variant] : ""}`}>
+      <div className={styles.cardLabel}>{label}</div>
+      <div className={styles.cardValue}>{value}</div>
+      {sub && <p className={styles.cardSub}>{sub}</p>}
+    </div>
+  );
+}
+
+/** 
+ * Step Detail: Shows the deep-dive of a single step execution 
+ */
+function StepDetail({ step }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className={`${styles.stepWrapper} ${isOpen ? styles.stepOpen : ""}`}>
+      <div className={styles.stepHeader} onClick={() => setIsOpen(!isOpen)}>
+        <div className={styles.stepTitleSide}>
+          <div className={styles.stepNumber}>{step.stepOrder || "—"}</div>
+          <Badge variant={step.method?.toLowerCase() || "get"}>{step.method || "GET"}</Badge>
+          <span className={styles.stepName}>{step.stepName || "Untitled Step"}</span>
+        </div>
+        <div className={styles.stepMetaSide}>
+          <span className={styles.stepDuration}>{fmtMs(step.durationMs)}</span>
+          <Badge variant={statusVariant(step.status)}>{step.statusCode || step.status || "???"}</Badge>
+          <IconChevron size={16} className={styles.stepChevron} />
+        </div>
+      </div>
+      
+      {isOpen && (
+        <div className={styles.stepContent}>
+          <div className={styles.stepGrid}>
+            <div className={styles.stepColumn}>
+              <h4>Request Info</h4>
+              <div className={styles.codeBlock}>
+                <label>Resolved URL</label>
+                <pre>{step.resolvedUrl || step.url || "—"}</pre>
+              </div>
+              <div className={styles.codeBlock}>
+                <label>Headers</label>
+                <pre>{tryFormatJson(step.resolvedHeadersJson)}</pre>
+              </div>
+              <div className={styles.codeBlock}>
+                <label>Body</label>
+                <pre>{tryFormatJson(step.resolvedBodyJson)}</pre>
+              </div>
+            </div>
+            <div className={styles.stepColumn}>
+              <h4>Response</h4>
+              {step.errorMessage && (
+                <div className={styles.errorText}>
+                  <strong>Error:</strong> {step.errorMessage}
+                </div>
+              )}
+              <div className={styles.codeBlock}>
+                <label>Body</label>
+                <pre>{tryFormatJson(step.responseBody)}</pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Bulk Report View */
+function BulkView({ data }) {
+  if (!data) return <EmptyState icon="📦" title="Job not found" subtitle="The requested bulk job data could not be retrieved." />;
+
+  return (
+    <div className={styles.reportArea}>
+      <div className={styles.summaryGrid}>
+        <StatCard label="Job Status" value={<Badge variant={statusVariant(data.status)}>{data.status}</Badge>} />
+        <StatCard label="Total Items" value={data.totalItems || 0} />
+        <StatCard label="Passed" value={data.passedItems || 0} variant="success" />
+        <StatCard label="Failed" value={data.failedItems || 0} variant="danger" />
+        <StatCard label="Duration" value={fmtMs(data.durationMs)} />
+        <StatCard label="Finished At" value={fmtDate(data.finishedAt)} />
+      </div>
+
+      <div className={styles.sectionTitle}>Execution Items</div>
+      <div className={styles.list}>
+        {(data.items || []).map((item, i) => (
+          <div key={i} className={styles.listItem}>
+            <div className={styles.itemInfo}>
+              <IconFlow size={20} className={styles.itemIcon} />
+              <div>
+                <h3>{item.targetName || `Item ${item.targetId}`}</h3>
+                <p>Type: {data.type} • ID: {item.executionId || item.targetId}</p>
+              </div>
+            </div>
+            <div className={styles.itemActions}>
+              <span className={styles.durationLabel}>{fmtMs(item.durationMs)}</span>
+              <Badge variant={statusVariant(item.status)}>{item.status}</Badge>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Module Report View */
+function ModuleView({ data }) {
+  if (!data) return <EmptyState icon="📦" title="Execution not found" subtitle="Could not load module execution details." />;
+
+  return (
+    <div className={styles.reportArea}>
+      <div className={styles.summaryGrid}>
+        <StatCard label="Module" value={data.moduleName || "—"} />
+        <StatCard label="Final Status" value={<Badge variant={statusVariant(data.status)}>{data.status}</Badge>} />
+        <StatCard label="Flows" value={`${data.passedFlows || 0} / ${data.totalFlows || 0} Passed`} />
+        <StatCard label="Duration" value={fmtMs(data.durationMs)} />
+        <StatCard label="Started At" value={fmtDate(data.startedAt)} />
+        <StatCard label="Finished At" value={fmtDate(data.finishedAt)} />
+      </div>
+
+      <div className={styles.sectionTitle}>Flow Executions</div>
+      <div className={styles.list}>
+        {(data.flows || []).map((flow, i) => (
+          <div key={i} className={styles.listItem}>
+            <div className={styles.itemInfo}>
+              <IconFlow size={20} className={styles.itemIcon} />
+              <div>
+                <h3>{flow.flowName}</h3>
+                <p>{flow.steps?.length || 0} Steps • {fmtMs(flow.durationMs)}</p>
+              </div>
+            </div>
+            <div className={styles.itemActions}>
+              <Badge variant={statusVariant(flow.status)}>{flow.status}</Badge>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Flow Report View */
+function FlowView({ data }) {
+  if (!data) return <EmptyState icon="🌊" title="Report unavailable" subtitle="No execution data found for this flow." />;
+
+  return (
+    <div className={styles.reportArea}>
+      <div className={styles.summaryGrid}>
+        <StatCard label="Flow Name" value={data.flowName || "—"} />
+        <StatCard label="Status" value={<Badge variant={statusVariant(data.status)}>{data.status}</Badge>} />
+        <StatCard label="Total Steps" value={data.steps?.length || 0} />
+        <StatCard label="Duration" value={fmtMs(data.durationMs)} />
+        <StatCard label="Module" value={data.moduleName || "—"} />
+        <StatCard label="Executed At" value={fmtDate(data.finishedAt)} />
+      </div>
+
+      <div className={styles.sectionTitle}>Execution Steps</div>
+      <div className={styles.stepsList}>
+        {(data.steps || []).map((step, i) => (
+          <StepDetail key={step.stepId || i} step={step} />
+        ))}
+        {(data.steps || []).length === 0 && (
+          <div className={styles.emptySteps}>No steps were executed in this run.</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** History Sidebar Item */
+function HistoryItem({ item, active, onClick }) {
+  const passed = ["PASSED", "SUCCESS", "COMPLETED"].includes(String(item.results?.status || item.results?.allFlowsPassed ? "PASSED" : "").toUpperCase());
+  const label = item.type === "bulk" ? "Bulk Job" : item.type === "module" ? `Module: ${item.results?.moduleName || item.id}` : `Flow: ${item.results?.flowName || item.id}`;
+
+  return (
+    <div className={`${styles.historyItem} ${active ? styles.activeItem : ""}`} onClick={onClick}>
+      <div className={styles.historyDot} style={{ background: passed ? "#10b981" : "#ef4444" }} />
+      <div className={styles.historyInfo}>
+        <span className={styles.historyType}>{item.type.toUpperCase()}</span>
+        <span className={styles.historyLabel}>{label}</span>
+        <span className={styles.historyDate}>{fmtDate(item.finishedAt)}</span>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Component ──────────────────────────────────────────────────────────
+
+const TABS = [
+  { key: "summary", label: "Dashboard" },
+  { key: "module", label: "Modules" },
+  { key: "flow", label: "Flows" },
+  { key: "bulk", label: "Bulk Jobs" },
+];
+
+function Report() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { modules, executions } = useModules();
+
+  const query = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const typeParam = query.get("type") || "summary";
+  const idParam = query.get("id");
+
+  const [activeTab, setActiveTab] = useState(typeParam);
+  const [loading, setLoading] = useState(false);
+  const [reportData, setReportData] = useState(null);
+  const [error, setError] = useState(null);
+
+  const history = useMemo(() => {
+    try {
+      const raw = JSON.parse(localStorage.getItem("mr_auto_history") || "[]");
+      // Unique-ify by execution ID
+      const seen = new Set();
+      return raw.filter(item => {
+        const uid = item.results?.bulkJobId || item.results?.moduleExecutionId || item.results?.flowExecutionId || `${item.type}-${item.id}-${item.finishedAt}`;
+        if (seen.has(uid)) return false;
+        seen.add(uid);
+        return true;
+      });
+    } catch { return []; }
+  }, [executions]); // Re-compute when context executions change
+
+  const fetchData = useCallback(async () => {
+    if (!idParam && activeTab !== "summary") {
+      setReportData(null);
+      return;
+    }
+    
+    setLoading(true);
+    setError(null);
+    try {
+      let data = null;
+      if (activeTab === "bulk" && idParam) {
+        data = await api.getBulkReportData(idParam);
+      } else if (activeTab === "module" && idParam) {
+        // idParam might be moduleId (legacy) or moduleExecutionId
+        // Try as execution ID first, then fallback to looking up latest for module
+        try {
+          data = await api.getModuleReportData(idParam);
+        } catch {
+          const modExec = Object.values(executions).find(ex => ex.id == idParam && ex.type === 'module')?.results?.moduleExecutionId;
+          if (modExec) data = await api.getModuleReportData(modExec);
+        }
+      } else if (activeTab === "flow" && idParam) {
+        data = await api.getFlowReportData(idParam);
+      } else if (activeTab === "summary") {
+        // For dashboard, show latest bulk or module run
+        const latest = history[0];
+        if (latest) {
+          const id = latest.results?.bulkJobId || latest.results?.moduleExecutionId || latest.results?.flowExecutionId;
+          if (latest.type === "bulk") data = await api.getBulkReportData(id);
+          else if (latest.type === "module") data = await api.getModuleReportData(id);
+          else if (latest.type === "flow") data = await api.getFlowReportData(id);
+        }
+      }
+      setReportData(data);
+    } catch (err) {
+      console.error("Fetch error:", err);
+      setError("Failed to load execution data. The record may have expired or is still processing.");
+    } finally {
+      setLoading(false);
+    }
+  }, [activeTab, idParam, history, executions]);
+
+  useEffect(() => {
+    fetchData();
+  }, [activeTab, idParam]); // intentionally omit fetchData to avoid loops if not stable
+
+  // Handle sidebar navigation
+  const handleHistoryClick = (item) => {
+    const id = item.results?.bulkJobId || item.results?.moduleExecutionId || item.results?.flowExecutionId;
+    setActiveTab(item.type);
+    navigate(`/report?type=${item.type}&id=${id}`, { replace: true });
+  };
+
+  return (
+    <div className={styles.container}>
+      <aside className={styles.sidebar}>
+        <div className={styles.sidebarHeader}>
+          <h3>Execution History</h3>
+          <span className={styles.historyCount}>{history.length} runs</span>
+        </div>
+        <div className={styles.historyList}>
+          {history.map((item, i) => (
+            <HistoryItem
+              key={i}
+              item={item}
+              active={idParam === String(item.results?.bulkJobId || item.results?.moduleExecutionId || item.results?.flowExecutionId)}
+              onClick={() => handleHistoryClick(item)}
+            />
+          ))}
+          {history.length === 0 && <div className={styles.emptyHistory}>No recent activity</div>}
+        </div>
+      </aside>
+
+      <div className={styles.content}>
+        <header className={styles.header}>
+          <div className={styles.headerLeft}>
+            <button className={styles.backBtn} onClick={() => navigate(-1)}>
+              <IconBack size={20} />
+            </button>
+            <div>
+              <h1>Automation Analytics</h1>
+              <p>Detailed performance metrics and execution logs.</p>
+            </div>
+          </div>
+          <div className={styles.headerRight}>
+            <Button variant="secondary" size="small" onClick={fetchData} disabled={loading} icon={loading ? <span className={styles.spinner} /> : "↻"}>
+              Refresh
+            </Button>
+          </div>
+        </header>
+
+        <div className={styles.tabs}>
+          {TABS.map((tab) => (
+            <button
+              key={tab.key}
+              className={`${styles.tab} ${activeTab === tab.key ? styles.active : ""}`}
+              onClick={() => {
+                setActiveTab(tab.key);
+                if (tab.key === 'summary') navigate('/report?type=summary', { replace: true });
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {error && <div className={styles.errorBanner}>⚠️ {error}</div>}
+
+        <main className={styles.main}>
+          {loading ? (
+            <div className={styles.loadingContainer}>
+              <span className={styles.mainSpinner} />
+              <p>Fetching execution data...</p>
+            </div>
+          ) : (
+            <>
+              {activeTab === "summary" && (reportData ? (
+                reportData.bulkJobId ? <BulkView data={reportData} /> : 
+                reportData.moduleExecutionId ? <ModuleView data={reportData} /> : 
+                <FlowView data={reportData} />
+              ) : <EmptyState icon="📊" title="Dashboard Empty" subtitle="Select a historical run from the sidebar to begin." />)}
+
+              {activeTab === "bulk" && <BulkView data={reportData} />}
+              {activeTab === "module" && <ModuleView data={reportData} />}
+              {activeTab === "flow" && <FlowView data={reportData} />}
+            </>
+          )}
+        </main>
+      </div>
+    </div>
+  );
+}
+
+export default Report;

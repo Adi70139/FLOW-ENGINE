@@ -1,28 +1,36 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import IconButton from "./ui/icon-button/IconButton";
 import Button from "./ui/button/Button";
+import Input from "./ui/input/Input";
+import { IconDelete, IconPlus } from "./ui/icons/Icons";
 import styles from "./KeyValueTable.module.css";
 
-/**
- * Reusable key-value table for headers and body params.
- * Each row: { key, value, enabled }
- */
 function KeyValueTable({
   rows = [],
   onChange,
   keyPlaceholder = "Key",
   valuePlaceholder = "Value",
 }) {
-  const [localRows, setLocalRows] = useState(rows);
+  const [localRows, setLocalRows] = useState(
+    rows.length ? rows : [{ key: "", value: "", enabled: true }]
+  );
+
+  // Track the last emitted rows to avoid re-syncing when the parent updates with what we just sent
+  const lastEmittedRef = useRef(rows);
 
   useEffect(() => {
-    setLocalRows(rows);
+    if (rows !== lastEmittedRef.current) {
+      setLocalRows(rows.length ? rows : [{ key: "", value: "", enabled: true }]);
+      lastEmittedRef.current = rows;
+    }
   }, [rows]);
 
   function emit(nextRows) {
     setLocalRows(nextRows);
+    lastEmittedRef.current = nextRows;
     onChange && onChange(nextRows);
   }
+
 
   function updateRow(i, patch) {
     const next = [...localRows];
@@ -35,11 +43,12 @@ function KeyValueTable({
   }
 
   function removeRow(i) {
-    emit(localRows.filter((_, idx) => idx !== i));
+    const next = localRows.filter((_, idx) => idx !== i);
+    emit(next.length ? next : [{ key: "", value: "", enabled: true }]);
   }
 
   return (
-    <div>
+    <div className={styles.container}>
       <table className={styles.table}>
         <thead>
           <tr>
@@ -51,11 +60,8 @@ function KeyValueTable({
         </thead>
         <tbody>
           {localRows.map((r, i) => (
-            <tr
-              key={i}
-              className={r.enabled === false ? styles.disabledRow : ""}
-            >
-              <td style={{ textAlign: "center" }}>
+            <tr key={i} className={r.enabled === false ? styles.disabledRow : ""}>
+              <td className={styles.toggleCol}>
                 <input
                   type="checkbox"
                   className={styles.toggle}
@@ -63,39 +69,45 @@ function KeyValueTable({
                   onChange={(e) => updateRow(i, { enabled: e.target.checked })}
                 />
               </td>
-              <td>
+              <td className={styles.keyCol}>
                 <input
                   className={styles.cellInput}
-                  value={r.key || ""}
+                  value={r.key}
                   onChange={(e) => updateRow(i, { key: e.target.value })}
                   placeholder={keyPlaceholder}
                 />
               </td>
-              <td>
+              <td className={styles.valCol}>
                 <input
                   className={styles.cellInput}
-                  value={r.value || ""}
+                  value={r.value}
                   onChange={(e) => updateRow(i, { value: e.target.value })}
                   placeholder={valuePlaceholder}
                 />
               </td>
-              <td style={{ textAlign: "center" }}>
-                <IconButton
-                  size="small"
-                  variant="danger"
-                  title="Remove"
+              <td className={styles.actionCol}>
+                <IconButton 
+                  size="small" 
+                  variant="ghost" 
                   onClick={() => removeRow(i)}
+                  className={styles.deleteBtn}
                 >
-                  ✕
+                  <IconDelete size={14} />
                 </IconButton>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
+
       <div className={styles.footer}>
-        <Button variant="ghost" size="small" onClick={addRow} icon="＋">
-          Add row
+        <Button 
+          variant="secondary" 
+          size="small" 
+          onClick={addRow}
+          icon={<IconPlus size={14} />}
+        >
+          Add Row
         </Button>
       </div>
     </div>

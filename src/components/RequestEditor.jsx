@@ -15,6 +15,7 @@ import styles from "./RequestEditor.module.css";
 const REQUEST_TABS = [
   { id: "headers", label: "Headers" },
   { id: "body", label: "Body" },
+  { id: "assertions", label: "Assertions" },
   { id: "extract", label: "Tests/Extract" },
   { id: "curl", label: "Import cURL" },
 ];
@@ -202,6 +203,54 @@ function RequestEditor() {
                   {selectedStep.parameterizedFields.filter(r => r.parameterize).length > 1 ? "s" : ""} parameterized
                 </span>
               )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === "assertions" && (
+          <div className={styles.assertionsSection}>
+            <div className={styles.assertionRow}>
+              <label>Expected Status Code</label>
+              <Input
+                type="number"
+                placeholder="e.g. 200"
+                value={selectedStep.assertions?.statusCode || ""}
+                onChange={(e) => update({ assertions: { ...selectedStep.assertions, statusCode: parseInt(e.target.value) || null } })}
+              />
+            </div>
+            <div className={styles.assertionRow}>
+              <label>JSON Schema Assertion</label>
+              <Textarea
+                placeholder="Enter JSON Schema to validate response body"
+                rows={5}
+                mono
+                value={selectedStep.assertions?.schema ? JSON.stringify(selectedStep.assertions.schema, null, 2) : ""}
+                onChange={(e) => {
+                  try {
+                    const schema = e.target.value ? JSON.parse(e.target.value) : null;
+                    update({ assertions: { ...selectedStep.assertions, schema } });
+                  } catch (err) {}
+                }}
+              />
+            </div>
+            <div className={styles.assertionRow}>
+              <label>Field Assertions</label>
+              <p className={styles.tabDescription}>Assert specific values in the response body JSON.</p>
+              <KeyValueTable
+                rows={Object.entries(selectedStep.assertions?.body || {}).map(([key, value]) => ({ key, value: JSON.stringify(value), enabled: true }))}
+                onChange={(rows) => {
+                  const body = rows.reduce((acc, row) => {
+                    if (row.key) {
+                      try { acc[row.key] = JSON.parse(row.value); }
+                      catch { acc[row.key] = row.value; }
+                    }
+                    return acc;
+                  }, {});
+                  update({ assertions: { ...selectedStep.assertions, body } });
+                }}
+                keyPlaceholder="JSON Path (e.g. status)"
+                valuePlaceholder="Expected Value (e.g. 'success')"
+              />
             </div>
           </div>
         )}

@@ -7,26 +7,117 @@ import IconButton from "./ui/icon-button/IconButton";
 import Modal from "./ui/modal/Modal";
 import Input from "./ui/input/Input";
 import Textarea from "./ui/textarea/Textarea";
-import { IconModule, IconPlus, IconPlay, IconDelete, IconFlow, IconStep } from "./ui/icons/Icons";
+import { IconModule, IconPlus, IconPlay, IconDelete, IconFlow, IconStep, IconReport, IconDuplicate } from "./ui/icons/Icons";
 import styles from "./LandingPage.module.css";
 
-const slugify = (text) => text.toLowerCase().replace(/[^\w ]+/g, '').replace(/ +/g, '-');
+const slugify = (text) =>
+  text.toLowerCase().replace(/[^\w ]+/g, "").replace(/ +/g, "-");
 
 function LandingPage() {
-  const { modules, loading, error } = useModules();
+  const navigate = useNavigate();
+  const {
+    modules,
+    loading,
+    error,
+    executeModule,
+    executions,
+    executeBulkWithPolling, // FIX: use polling version
+    dispatch,
+  } = useModules();
+
   const [showCreate, setShowCreate] = useState(false);
   const [editingModule, setEditingModule] = useState(null);
+  const [showImport, setShowImport] = useState(false);
+  const [importTargetModuleId, setImportTargetModuleId] = useState(null);
+
+  const bulkExec = executions["bulk"];
+  const bulkRunning = bulkExec?.status === "running";
+  const bulkDone = bulkExec?.status === "done";
+
+  async function handleBulkRun() {
+    if (modules.length === 0 || bulkRunning) return;
+    const ids = modules.map((m) => m.id);
+    const envIds = modules.map((m) => m.environments?.[0]?.id).filter(Boolean);
+
+    try {
+      // Pass total count to context for UI progress tracking
+      await executeBulkWithPolling("module", ids, envIds);
+      navigate("/report?type=bulk");
+    } catch (err) {
+      alert("Bulk execution failed: " + err.message);
+    }
+  }
 
   return (
     <div className={styles.landing}>
-      <div className={styles.header}>
-        <div className={styles.titleSection}>
-          <h1>Modules</h1>
-          <p>Organize your automation flows into logical modules.</p>
+      <div className={styles.hero}>
+        <div className={styles.heroContent}>
+          <div className={styles.heroBadge}>v1.0.0 Alpha</div>
+          <h1>API Orchestration <span className={styles.gradientText}>Simplified</span></h1>
+          <p>Design, automate, and monitor your entire API ecosystem from a single, unified workspace. Powerful chaining, environment management, and scheduled runs.</p>
+          <div className={styles.heroActions}>
+            <Button onClick={() => setShowCreate(true)} icon={<IconPlus size={18} />}>
+              Create Module
+            </Button>
+            <Button variant="secondary" onClick={() => setShowImport(true)} icon={<IconPlus size={18} style={{ transform: 'rotate(45deg)' }} />}>
+              Import Collection
+            </Button>
+          </div>
         </div>
-        <Button onClick={() => setShowCreate(true)} icon={<IconPlus size={18} />}>
-          Create Module
-        </Button>
+        <div className={styles.quickStats}>
+          <div className={styles.statBox}>
+            <span className={styles.statVal}>{modules.length}</span>
+            <span className={styles.statLabel}>Modules</span>
+          </div>
+          <div className={styles.statBox}>
+            <span className={styles.statVal}>{modules.reduce((acc, m) => acc + (m.flows?.length || 0), 0)}</span>
+            <span className={styles.statLabel}>Total Flows</span>
+          </div>
+          <div className={styles.statBox}>
+            <span className={styles.statVal}>{modules.reduce((acc, m) => acc + (m.flows?.reduce((fAcc, f) => fAcc + (f.stepCount || 0), 0) || 0), 0)}</span>
+            <span className={styles.statLabel}>Total Tests</span>
+          </div>
+        </div>
+      </div>
+
+      <div className={styles.sectionHeader}>
+        <h2>Your Workspace</h2>
+        <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+          {/* Bulk status badge */}
+          {bulkRunning && (
+            <div className={styles.bulkStatus}>
+              <span className={styles.spinner} />
+              Running Bulk: {bulkExec.results?.items?.length || 0} / {bulkExec.total || modules.length}
+            </div>
+          )}
+          {bulkDone && (
+            <div
+              className={`${styles.bulkStatus} ${
+                bulkExec.results?.status === "COMPLETED" || bulkExec.results?.status === "SUCCESS" || bulkExec.results?.passedItems === bulkExec.results?.totalItems
+                  ? styles.bulkPass
+                  : styles.bulkFail
+              }`}
+            >
+              {bulkExec.results?.status === "COMPLETED" || bulkExec.results?.status === "SUCCESS" || bulkExec.results?.passedItems === bulkExec.results?.totalItems
+                ? "✓ Bulk Completed"
+                : "✗ Bulk Failed/Partial"}
+            </div>
+          )}
+
+          <Button
+            variant="secondary"
+            onClick={handleBulkRun}
+            disabled={loading || bulkRunning || modules.length === 0}
+          >
+            {bulkRunning ? "Running..." : "Bulk Run All"}
+          </Button>
+
+          {bulkDone && (
+            <Button variant="secondary" onClick={() => navigate("/report?type=bulk")}>
+              View Report
+            </Button>
+          )}
+        </div>
       </div>
 
       {loading && <div className={styles.loading}>Loading modules...</div>}
@@ -34,31 +125,33 @@ function LandingPage() {
 
       <div className={styles.grid}>
         {modules.map((mod) => (
-          <ModuleCard 
-            key={mod.id} 
-            module={mod} 
-            onEdit={() => setEditingModule(mod)} 
-          />
+          <ModuleCard key={mod.id} module={mod} onEdit={() => setEditingModule(mod)} />
         ))}
         {!loading && modules.length === 0 && (
           <div className={styles.emptyState}>
             <div className={styles.emptyIcon}>🚀</div>
-            <h3>No modules yet</h3>
-            <p>Create your first module to start building automation flows.</p>
-            <Button onClick={() => setShowCreate(true)} icon={<IconPlus size={18} />}>
-              Get Started
-            </Button>
+            <h3>Ready to start?</h3>
+            <p>Create your first module or import a Postman collection to begin.</p>
+            <div style={{ display: "flex", gap: "12px", marginTop: "12px" }}>
+              <Button onClick={() => setShowCreate(true)} icon={<IconPlus size={18} />}>
+                Create New
+              </Button>
+              <Button variant="secondary" onClick={() => setShowImport(true)}>
+                Import JSON
+              </Button>
+            </div>
           </div>
         )}
       </div>
 
-      {showCreate && (
-        <CreateModuleModal onClose={() => setShowCreate(false)} />
-      )}
+      {showCreate && <CreateModuleModal onClose={() => setShowCreate(false)} />}
       {editingModule && (
-        <UpdateModuleModal 
-          module={editingModule} 
-          onClose={() => setEditingModule(null)} 
+        <UpdateModuleModal module={editingModule} onClose={() => setEditingModule(null)} />
+      )}
+      {showImport && (
+        <ImportPostmanModal
+          onClose={() => setShowImport(false)}
+          defaultModuleId={importTargetModuleId}
         />
       )}
     </div>
@@ -66,21 +159,16 @@ function LandingPage() {
 }
 
 function ModuleCard({ module, onEdit }) {
-  const { deleteModule } = useModules();
+  const { deleteModule, executeModule, executions } = useModules();
   const navigate = useNavigate();
-  const [running, setRunning] = useState(false);
 
   async function handleRun(e) {
     e.stopPropagation();
-    setRunning(true);
+    if (executions[module.id]?.status === "running") return;
     try {
-      const results = await api.executeModule(module.id);
-      console.log("Module Execution Results:", results);
-      alert(`Module "${module.name}" executed. All flows passed: ${results.allFlowsPassed}`);
+      await executeModule(module.id);
     } catch (err) {
-      alert(`Execution failed: ${err.message}`);
-    } finally {
-      setRunning(false);
+      // handled in context
     }
   }
 
@@ -97,7 +185,9 @@ function ModuleCard({ module, onEdit }) {
   }
 
   const flowCount = module.flows?.length || 0;
-  const testCount = module.flows?.reduce((acc, f) => acc + (f.tests?.length || 0), 0) || 0;
+  const testCount =
+    module.flows?.reduce((acc, f) => acc + (f.stepCount || f.tests?.length || 0), 0) || 0;
+  const exec = executions[module.id];
 
   return (
     <div className={styles.card} onClick={handleOpen}>
@@ -115,23 +205,19 @@ function ModuleCard({ module, onEdit }) {
               onEdit();
             }}
           >
-            <IconPlus size={16} style={{ transform: 'rotate(45deg)' }} /> 
+            <IconPlus size={16} style={{ transform: "rotate(45deg)" }} />
           </IconButton>
-          <IconButton
-            variant="danger"
-            size="small"
-            className={styles.deleteBtn}
-            onClick={handleDelete}
-          >
+          <IconButton variant="danger" size="small" onClick={handleDelete}>
             <IconDelete size={16} />
           </IconButton>
         </div>
       </div>
+
       <div>
         <h3 className={styles.cardTitle}>{module.name}</h3>
         <p className={styles.cardDesc}>{module.description || "No description provided."}</p>
       </div>
-      
+
       <div className={styles.cardMeta}>
         <div className={styles.metaItem}>
           <IconFlow size={16} className={styles.metaIcon} />
@@ -146,13 +232,42 @@ function ModuleCard({ module, onEdit }) {
       <div className={styles.cardActions}>
         <Button
           variant="primary"
-          className={styles.runBtn}
+          className={`${styles.runBtn} ${exec?.status === "running" ? styles.runningGlow : ""}`}
           onClick={handleRun}
-          disabled={running}
-          icon={running ? <span className={styles.spinner} /> : <IconPlay size={16} />}
+          disabled={exec?.status === "running"}
+          icon={
+            exec?.status === "running" ? (
+              <span className={styles.spinner} />
+            ) : (
+              <IconPlay size={16} />
+            )
+          }
         >
-          {running ? "Running..." : "Run All"}
+          {exec?.status === "running" ? "Running..." : "Run All"}
         </Button>
+
+        {exec?.status === "done" && (
+          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+            <div
+              className={`${styles.statusIcon} ${
+                exec.results?.allFlowsPassed ? styles.pass : styles.fail
+              }`}
+            >
+              {exec.results?.allFlowsPassed ? "✓ Passed" : "✗ Failed"}
+            </div>
+            <IconButton
+              size="small"
+              variant="secondary"
+              title="View Report"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/report?type=module&id=${module.id}`);
+              }}
+            >
+              <IconReport size={16} />
+            </IconButton>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -209,7 +324,7 @@ function CreateModuleModal({ onClose }) {
 }
 
 function UpdateModuleModal({ module, onClose }) {
-  const { updateModule } = useModules();
+  const { updateModule } = useModules(); // FIX: was calling api.updateModule directly but updateModule wasn't in context
   const [name, setName] = useState(module.name);
   const [desc, setDesc] = useState(module.description || "");
   const [loading, setLoading] = useState(false);
@@ -248,6 +363,74 @@ function UpdateModuleModal({ module, onClose }) {
           <Button variant="secondary" onClick={onClose} disabled={loading}>Cancel</Button>
           <Button onClick={handleUpdate} disabled={loading}>
             {loading ? "Updating..." : "Save Changes"}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function ImportPostmanModal({ onClose, defaultModuleId }) {
+  const { modules, importFlow } = useModules();
+  const [moduleId, setModuleId] = useState(defaultModuleId || (modules[0]?.id || ""));
+  const [flowName, setFlowName] = useState("");
+  const [file, setFile] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  async function handleImport() {
+    if (!moduleId || !flowName || !file) {
+      alert("Please fill in all fields and select a file.");
+      return;
+    }
+    setLoading(true);
+    try {
+      await importFlow(moduleId, file, flowName);
+      onClose();
+    } catch (err) {
+      alert("Import failed: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Modal title="Import Postman Collection" onClose={onClose} size="sm">
+      <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+        <div className={styles.formGroup}>
+          <label className={styles.label}>Target Module</label>
+          <select
+            className={styles.select}
+            value={moduleId}
+            onChange={(e) => setModuleId(e.target.value)}
+          >
+            <option value="" disabled>Select a module</option>
+            {modules.map((m) => (
+              <option key={m.id} value={m.id}>{m.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <Input
+          label="Flow Name"
+          placeholder="e.g. Auth Flow"
+          value={flowName}
+          onChange={(e) => setFlowName(e.target.value)}
+        />
+
+        <div className={styles.formGroup}>
+          <label className={styles.label}>Postman Collection JSON</label>
+          <input
+            type="file"
+            accept=".json"
+            onChange={(e) => setFile(e.target.files[0])}
+            className={styles.fileInput}
+          />
+        </div>
+
+        <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+          <Button variant="secondary" onClick={onClose} disabled={loading}>Cancel</Button>
+          <Button onClick={handleImport} disabled={loading}>
+            {loading ? "Importing..." : "Import"}
           </Button>
         </div>
       </div>

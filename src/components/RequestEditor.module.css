@@ -1,161 +1,179 @@
 .editor {
   display: flex;
   flex-direction: column;
-  gap: var(--space-lg);
+  gap: 24px;
+  animation: slideUp 0.4s var(--ease);
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.methodRow {
+  display: flex;
+  gap: 12px;
 }
 
 /* ── URL Bar ── */
 .urlBar {
   display: flex;
-  gap: var(--space-sm);
-  align-items: flex-end;
+  gap: 12px;
+  background: var(--bg-surface);
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--border);
+  padding: 8px;
+  border-radius: 16px;
+  box-shadow: var(--glass-shadow);
+  transition: border-color 0.2s;
+}
+
+.urlBar:focus-within {
+  border-color: var(--accent);
 }
 
 .urlInput {
   flex: 1;
 }
 
-.sendBtn {
-  min-width: 100px;
+.urlInput input {
+  background: transparent !important;
+  border: none !important;
+  padding-left: 12px !important;
 }
 
+.sendBtn {
+  padding: 0 24px !important;
+  border-radius: 10px !important;
+  background: var(--accent) !important;
+  color: white !important;
+  font-weight: 600 !important;
+  transition: all 0.2s !important;
+}
+
+.sendBtn:hover:not(:disabled) {
+  transform: scale(1.02);
+  box-shadow: 0 0 20px var(--accent-glow);
+}
+
+/* ── Params Info ── */
 .paramInfo {
-  margin-bottom: var(--space-md);
-  padding: var(--space-sm) var(--space-md);
-  background: rgba(99, 102, 241, 0.05);
-  border-radius: var(--radius-md);
-  border: 1px dashed rgba(99, 102, 241, 0.2);
+  background: rgba(16, 185, 129, 0.05);
+  border: 1px solid rgba(16, 185, 129, 0.1);
+  padding: 12px 16px;
+  border-radius: 12px;
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.paramLabelRow {
+  display: flex;
   align-items: center;
-  gap: var(--space-xs);
+  gap: 12px;
 }
 
 .paramLabel {
-  font-size: var(--text-xs);
+  font-size: 11px;
   font-weight: 700;
-  color: var(--text-secondary);
   text-transform: uppercase;
-  margin-right: var(--space-xs);
+  letter-spacing: 1px;
+  color: var(--accent);
 }
 
 .paramHint {
-  width: 100%;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-muted);
-  margin-top: 4px;
+  margin: 0;
 }
 
-/* ── Tabs section ── */
+/* ── Tab Content ── */
 .tabContent {
-  padding: var(--space-lg) 0 0;
-  min-height: 200px;
+  background: var(--bg-surface);
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 24px;
+  min-height: 300px;
+  box-shadow: var(--glass-shadow);
 }
 
 .tabDescription {
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-  margin-bottom: var(--space-lg);
-  line-height: 1.5;
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+  line-height: 1.6;
 }
 
 .tabDescription code {
-  color: var(--accent);
   background: rgba(16, 185, 129, 0.1);
-  padding: 2px 4px;
+  color: var(--accent);
+  padding: 2px 6px;
   border-radius: 4px;
   font-family: var(--font-mono);
+  font-size: 13px;
 }
 
-/* ── Body section ── */
+/* ── Body Section ── */
 .bodySection {
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
+  gap: 16px;
 }
 
 .bodyActions {
   display: flex;
+  justify-content: flex-end;
   align-items: center;
-  gap: var(--space-sm);
+  gap: 16px;
 }
 
 .paramBadge {
-  font-size: var(--text-xs);
+  font-size: 12px;
   font-weight: 600;
-  color: var(--accent-hover);
-  background: rgba(99, 102, 241, 0.12);
-  border: 1px solid rgba(99, 102, 241, 0.25);
-  padding: 3px 10px;
-  border-radius: var(--radius-full);
+  color: var(--accent);
+  background: rgba(16, 185, 129, 0.1);
+  padding: 4px 12px;
+  border-radius: 100px;
 }
 
-/* ── cURL Tab ── */
+/* ── Assertions ── */
+.assertionsSection {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.assertionRow {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.assertionRow label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* ── cURL ── */
 .curlSection {
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
+  gap: 16px;
 }
 
 .curlActions {
   display: flex;
-  gap: var(--space-sm);
   justify-content: flex-end;
 }
 
-.curlPreview {
-  background: var(--bg-input);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-md);
-  padding: var(--space-lg);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-}
-
-.previewLabel {
-  font-size: var(--text-xs);
-  font-weight: 600;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.previewValue {
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
-  color: var(--text-primary);
-  word-break: break-all;
-}
-
-.previewRow {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-/* ── Section label ── */
-.sectionLabel {
-  font-size: var(--text-xs);
-  font-weight: 600;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: var(--space-sm);
-}
-
-/* ── Method row for URL ── */
-.methodRow {
-  margin-bottom: var(--space-lg);
-}
-
-/* ── Loading spinner ── */
+/* ── Loading ── */
 .spinner {
-  display: inline-block;
-  width: 14px;
-  height: 14px;
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  border-top-color: #fff;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
 }
