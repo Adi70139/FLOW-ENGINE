@@ -58,14 +58,14 @@ function reducer(state, action) {
         modules: state.modules.map((m) =>
           m.id == action.moduleId
             ? {
-                ...m,
-                flows: (action.flows || []).map((f) => ({
-                  ...f,
-                  tests: null,
-                  stepsLoaded: false,
-                })),
-                flowsLoaded: true,
-              }
+              ...m,
+              flows: (action.flows || []).map((f) => ({
+                ...f,
+                tests: null,
+                stepsLoaded: false,
+              })),
+              flowsLoaded: true,
+            }
             : m
         ),
       };
@@ -100,11 +100,11 @@ function reducer(state, action) {
         modules: state.modules.map((m) =>
           m.id == action.moduleId
             ? {
-                ...m,
-                flows: (m.flows || []).map((f) =>
-                  f.id == action.id ? { ...f, ...action.patch } : f
-                ),
-              }
+              ...m,
+              flows: (m.flows || []).map((f) =>
+                f.id == action.id ? { ...f, ...action.patch } : f
+              ),
+            }
             : m
         ),
       };
@@ -149,11 +149,11 @@ function reducer(state, action) {
           flows: (m.flows || []).map((f) =>
             f.id == action.flowId
               ? {
-                  ...f,
-                  tests: (f.tests || []).map((t) =>
-                    t.id == action.stepId ? { ...t, ...action.patch } : t
-                  ),
-                }
+                ...f,
+                tests: (f.tests || []).map((t) =>
+                  t.id == action.stepId ? { ...t, ...action.patch } : t
+                ),
+              }
               : f
           ),
         })),
@@ -194,7 +194,7 @@ function reducer(state, action) {
       return {
         ...state,
         modules: state.modules.map((m) =>
-          m.id == action.moduleId ? { ...m, schedule: action.schedule } : m
+          m.id == action.moduleId ? { ...m, schedule: action.schedule, scheduleLoaded: true } : m
         ),
       };
 
@@ -243,7 +243,7 @@ function reducer(state, action) {
           return `${item.type}-${item.id}-${resId || ""}`;
         };
         const currentUniqueId = getUniqueId(execResult);
-        
+
         // Remove existing if it's the same run (unlikely but safe) or if we just want the latest
         const filtered = history.filter(h => getUniqueId(h) !== currentUniqueId);
         const newHistory = [execResult, ...filtered].slice(0, 50);
@@ -270,18 +270,21 @@ export function ModuleProvider({ children }) {
       dispatch({ type: "FETCH_START" });
       try {
         const modulesData = await api.getModules();
-        
+
         // Pre-fetch flows for all modules in parallel for "Total Flow Count" and instant navigation
         const modulesWithFlows = await Promise.all(
           modulesData.map(async (m) => {
             try {
-              const flows = await api.getFlowsByModule(m.name);
+              const [flows, envs] = await Promise.all([
+                api.getFlowsByModule(m.name),
+                api.getModuleEnvironments(m.id)
+              ]);
               return {
                 ...m,
                 flows: flows.map(f => ({ ...f, tests: null, stepsLoaded: false })),
                 flowsLoaded: true,
-                environments: [],
-                envLoaded: false,
+                environments: envs || [],
+                envLoaded: true,
                 schedule: null,
               };
             } catch (e) {
@@ -333,12 +336,13 @@ export function ModuleProvider({ children }) {
           console.error("Failed to load environments:", e);
         }
       }
-      if (!mod.schedule) {
+      if (!mod.scheduleLoaded) {
         try {
           const schedule = await api.getModuleSchedule(mod.id);
           dispatch({ type: "SET_SCHEDULE", moduleId: mod.id, schedule });
         } catch (e) {
-          // 404 is expected when no schedule is set
+          // 404 is expected when no schedule is set — mark as loaded anyway
+          dispatch({ type: "SET_SCHEDULE", moduleId: mod.id, schedule: null });
         }
       }
     }
@@ -557,7 +561,7 @@ export function useModules() {
         type: "UPDATE_FLOW",
         moduleId: state.selectedModuleId,
         id: flowId,
-        patch: { environmentId: envId || null },
+        patch: { defaultEnvironmentId: envId ? parseInt(envId) : null },
       });
     } catch (error) {
       console.error("Failed to set flow environment:", error);
@@ -643,7 +647,7 @@ export function useModules() {
 
             const s = (status?.status || "").toUpperCase();
             const isTerminal = ["COMPLETED", "PASSED", "FAILED", "ERROR", "SUCCESS", "PARTIAL_FAIL"].includes(s);
-            
+
             if (isTerminal) {
               dispatch({
                 type: "EXECUTION_END",
@@ -694,10 +698,8 @@ export function useModules() {
   // ── Step methods ──────────────────────────────────────────────────────────
 
   const addStep = async (flowId, stepData) => {
-    const flow = selectedModule?.flows?.find((f) => f.id == flowId);
-    const index = flow?.tests?.length || 0;
     try {
-      const newStep = await api.createStep(flowId, stepData, index);
+      const newStep = await api.createStep(flowId, stepData);
       const step = mapStepToTest(newStep);
       dispatch({ type: "ADD_STEP", flowId, step });
       return step;
@@ -712,10 +714,9 @@ export function useModules() {
     const step = flow?.tests?.find((t) => t.id == stepId);
     if (!step) return;
     const updated = { ...step, ...patch };
-    const index = (step.stepOrder || 1) - 1;
     dispatch({ type: "UPDATE_STEP", flowId, stepId, patch });
     try {
-      await api.updateStep(flowId, stepId, updated, index);
+      await api.updateStep(flowId, stepId, updated);
     } catch (error) {
       console.error("Failed to sync step update:", error);
     }

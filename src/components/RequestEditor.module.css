@@ -144,6 +144,49 @@
   gap: 24px;
 }
 
+.generateAssertions {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.generateHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.generateHeader h3 {
+  margin: 0 0 6px;
+  font-size: 16px;
+  color: var(--text-primary);
+}
+
+.generateHeader .tabDescription {
+  margin: 0;
+}
+
+.aiNote {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.assertionError {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.08);
+  border: 1px solid rgba(248, 113, 113, 0.18);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+}
+
 .assertionRow {
   display: flex;
   flex-direction: column;

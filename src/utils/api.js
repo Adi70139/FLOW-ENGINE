@@ -1,4 +1,5 @@
-const BASE_URL = "https://api-orchestration.onrender.com";
+//const BASE_URL = "https://api-orchestration.onrender.com";
+const BASE_URL = "http://localhost:8060";
 
 async function request(path, options = {}) {
   const url = `${BASE_URL}${path}`;
@@ -35,10 +36,9 @@ async function request(path, options = {}) {
 // ─── Mappers ─────────────────────────────────────────────────────────────────
 
 /** Frontend Test shape → Backend Step body */
-export const mapTestToStep = (test, index) => ({
+export const mapTestToStep = (test) => ({
   name: test.name,
   description: test.description || "",
-  stepOrder: index + 1,
   method: test.method || "GET",
   url: test.endpoint || "https://api.example.com",
   headersJson:
@@ -52,6 +52,8 @@ export const mapTestToStep = (test, index) => ({
       : null,
   bodyJson: test.payload || null,
   assertions: test.assertions || null,
+  retryCount: typeof test.retryCount === "number" ? test.retryCount : (parseInt(test.retryCount) || 0),
+  retryDelayMs: typeof test.retryDelayMs === "number" ? test.retryDelayMs : (parseInt(test.retryDelayMs) || 0),
 });
 
 /** Backend Step → Frontend Test shape */
@@ -77,7 +79,10 @@ export const mapStepToTest = (step) => ({
   })(),
   payload: step.bodyJson,
   assertions: step.assertionsJson ? JSON.parse(step.assertionsJson) : null,
+  retryCount: step.retryCount || 0,
+  retryDelayMs: step.retryDelayMs || 0,
 });
+
 
 // ─── API ──────────────────────────────────────────────────────────────────────
 
@@ -132,15 +137,15 @@ export const api = {
   // ── Steps ─────────────────────────────────────────────────────────────────
   getSteps: (flowId) => request(`/flows/${flowId}/steps`),
   getStep: (flowId, stepId) => request(`/flows/${flowId}/steps/${stepId}`),
-  createStep: (flowId, test, index) =>
+  createStep: (flowId, test) =>
     request(`/flows/${flowId}/steps`, {
       method: "POST",
-      body: JSON.stringify(mapTestToStep(test, index)),
+      body: JSON.stringify(mapTestToStep(test)),
     }),
-  updateStep: (flowId, stepId, test, index) =>
+  updateStep: (flowId, stepId, test) =>
     request(`/flows/${flowId}/steps/${stepId}`, {
       method: "PUT",
-      body: JSON.stringify(mapTestToStep(test, index)),
+      body: JSON.stringify(mapTestToStep(test)),
     }),
   deleteStep: (flowId, stepId) =>
     request(`/flows/${flowId}/steps/${stepId}`, { method: "DELETE" }),
@@ -207,7 +212,7 @@ export const api = {
       method: "POST",
       body: JSON.stringify({
         ids: (ids || []).map(id => parseInt(id)),
-        envIds: (envIds || []).map(id => parseInt(id))
+        envIds: (envIds || []).map(id => id ? parseInt(id) : null)
       }),
     });
   },
@@ -215,22 +220,29 @@ export const api = {
   getBulkJobStatus: (bulkJobId) => request(`/execute/bulk/${bulkJobId}`),
 
   // ── Reports — PDF download URLs ───────────────────────────────────────────
-  getFlowReport: (flowExecutionId) =>
-    `${BASE_URL}/report/flows/${flowExecutionId}`,
+  getFlowReport: (flowId) =>
+    `${BASE_URL}/report/flows/${flowId}`,
   getModuleReport: (moduleExecutionId) =>
     `${BASE_URL}/report/module-executions/${moduleExecutionId}`,
   getBulkReport: (bulkJobId) => `${BASE_URL}/report/bulk/${bulkJobId}`,
 
   // ── Reports — JSON data ───────────────────────────────────────────────────
-  /** GET /report/flows/:flowExecutionId/data */
-  getFlowReportData: (flowExecutionId) =>
-    request(`/report/flows/${flowExecutionId}/data`),
+  /** GET /report/flows/:flowId/data */
+  getFlowReportData: (flowId) =>
+    request(`/report/flows/${flowId}/data`),
   /** GET /report/module-executions/:moduleExecutionId/data */
   getModuleReportData: (moduleExecutionId) =>
     request(`/report/module-executions/${moduleExecutionId}/data`),
   /** GET /report/bulk/:bulkJobId/data */
   getBulkReportData: (bulkJobId) =>
     request(`/report/bulk/${bulkJobId}/data`),
+
+  // ── Assertions ───────────────────────────────────────────────────────────
+  generateAssertions: ({ responseBody, description }) =>
+    request("/assertions/generate", {
+      method: "POST",
+      body: JSON.stringify({ responseBody, description }),
+    }),
 
   // ── Import ────────────────────────────────────────────────────────────────
   /** POST /import/postman  multipart: { file, flowName, moduleId } */

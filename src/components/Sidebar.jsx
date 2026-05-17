@@ -4,7 +4,7 @@ import { useModules } from "../context/CollectionContext";
 
 import Badge from "./ui/badge/Badge";
 import IconButton from "./ui/icon-button/IconButton";
-import { IconFlow, IconPlay, IconDelete, IconChevron, IconPlus, IconDuplicate, IconReport, IconPlus as IconImport } from "./ui/icons/Icons";
+import { IconFlow, IconPlay, IconDelete, IconChevron, IconPlus, IconDuplicate, IconReport, IconEdit, IconPlus as IconImport } from "./ui/icons/Icons";
 import Modal from "./ui/modal/Modal";
 import Input from "./ui/input/Input";
 import Textarea from "./ui/textarea/Textarea";
@@ -26,8 +26,9 @@ function Sidebar() {
     fetchFlows,
     fetchSteps,
     executeFlow,
+    executeBulkWithPolling,
     executions,
-    createFlow,
+    addFlow,
   } = useModules();
 
   useEffect(() => {
@@ -47,6 +48,47 @@ function Sidebar() {
   const [editingFlow, setEditingFlow] = useState(null);
   const [showImport, setShowImport] = useState(false);
   const [showCreateFlow, setShowCreateFlow] = useState(false);
+  const [selectedFlows, setSelectedFlows] = useState(new Set());
+  const [bulkRunning, setBulkRunning] = useState(false);
+
+  function toggleFlowSelection(e, flowId) {
+    e.stopPropagation();
+    setSelectedFlows(prev => {
+      const next = new Set(prev);
+      if (next.has(flowId)) next.delete(flowId);
+      else next.add(flowId);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    const flows = selectedModule?.flows || [];
+    if (selectedFlows.size === flows.length) {
+      setSelectedFlows(new Set());
+    } else {
+      setSelectedFlows(new Set(flows.map(f => f.id)));
+    }
+  }
+
+  async function handleBulkFlowRun() {
+    if (selectedFlows.size === 0 || bulkRunning) return;
+    setBulkRunning(true);
+    const flows = selectedModule?.flows || [];
+    const ids = Array.from(selectedFlows);
+    const envIds = ids.map(id => {
+      const flow = flows.find(f => f.id === id);
+      return flow?.defaultEnvironmentId || null;
+    });
+
+    try {
+      await executeBulkWithPolling("flow", ids, envIds);
+      navigate("/report?type=bulk");
+    } catch (err) {
+      alert("Bulk flow run failed: " + err.message);
+    } finally {
+      setBulkRunning(false);
+    }
+  }
 
   function toggleExpand(id) {
     setExpanded((prev) => {
@@ -128,22 +170,48 @@ function Sidebar() {
         <div className={styles.sectionHeader}>
           <span className={styles.sectionTitle}>Flows</span>
           <div className={styles.sectionActions}>
-            <IconButton
-              size="small"
+            <button
+              className={styles.sectionBtn}
               onClick={() => setShowImport(true)}
-              title="Import Postman"
+              title="Import Postman Collection"
             >
-              <IconImport size={16} />
-            </IconButton>
-            <IconButton
-              size="small"
+              <IconImport size={14} />
+              <span>Import</span>
+            </button>
+            <button
+              className={styles.sectionBtn}
               onClick={() => setShowCreateFlow(true)}
-              title="Create Flow"
+              title="Create New Flow"
             >
-              <IconPlus size={16} />
-            </IconButton>
+              <IconPlus size={14} />
+              <span>Create</span>
+            </button>
           </div>
         </div>
+
+        {(selectedModule?.flows || []).length > 0 && (
+          <div className={styles.bulkBar}>
+            <label className={styles.selectAllLabel} onClick={toggleSelectAll}>
+              <input
+                type="checkbox"
+                checked={selectedFlows.size === (selectedModule?.flows || []).length && selectedFlows.size > 0}
+                onChange={toggleSelectAll}
+                className={styles.flowCheckbox}
+              />
+              <span>Select All ({selectedFlows.size}/{(selectedModule?.flows || []).length})</span>
+            </label>
+            {selectedFlows.size > 0 && (
+              <Button
+                size="small"
+                onClick={handleBulkFlowRun}
+                disabled={bulkRunning}
+                icon={bulkRunning ? <span className={styles.spinner} /> : <IconPlay size={14} />}
+              >
+                {bulkRunning ? "Running..." : `Run ${selectedFlows.size} Flow${selectedFlows.size > 1 ? "s" : ""}`}
+              </Button>
+            )}
+          </div>
+        )}
 
         {flows === null && <div className={styles.loading}>Loading flows...</div>}
 
@@ -164,6 +232,13 @@ function Sidebar() {
                   toggleExpand(flow.id);
                 }}
               >
+                <input
+                  type="checkbox"
+                  className={styles.flowCheckbox}
+                  checked={selectedFlows.has(flow.id)}
+                  onChange={(e) => toggleFlowSelection(e, flow.id)}
+                  onClick={(e) => e.stopPropagation()}
+                />
                 <div className={`${styles.chevron} ${isOpen ? styles.chevronOpen : ""}`}>
                   <IconChevron size={14} />
                 </div>
@@ -185,7 +260,7 @@ function Sidebar() {
                       setEditingFlow(flow);
                     }}
                   >
-                    <IconPlus size={14} style={{ transform: "rotate(45deg)" }} />
+                    <IconEdit size={14} />
                   </IconButton>
 
                   <IconButton
@@ -298,15 +373,16 @@ function Sidebar() {
 }
 
 function CreateFlowModal({ moduleId, onClose }) {
-  const { createFlow } = useModules();
+  const { addFlow } = useModules();
   const [name, setName] = useState("");
+  const [desc, setDesc] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function handleCreate() {
     if (!name.trim()) return;
     setLoading(true);
     try {
-      await createFlow(moduleId, { name: name.trim() });
+      await addFlow(moduleId, name.trim(), desc.trim());
       onClose();
     } catch (err) {
       alert("Failed to create flow: " + err.message);
@@ -320,9 +396,17 @@ function CreateFlowModal({ moduleId, onClose }) {
       <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
         <Input
           label="Flow Name"
+          placeholder="e.g. Authentication Flow"
           value={name}
           onChange={(e) => setName(e.target.value)}
           autoFocus
+        />
+        <Textarea
+          label="Description"
+          placeholder="Describe the purpose of this flow..."
+          value={desc}
+          onChange={(e) => setDesc(e.target.value)}
+          rows={3}
         />
         <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
           <Button variant="secondary" onClick={onClose}>Cancel</Button>
@@ -334,17 +418,23 @@ function CreateFlowModal({ moduleId, onClose }) {
 }
 
 function UpdateFlowModal({ moduleId, flow, onClose }) {
-  const { updateFlow, setFlowEnvironment, selectedModule } = useModules();
-  const [name, setName] = useState(flow.name);
+  const { setFlowEnvironment, updateFlow, selectedModule } = useModules();
+  const [name, setName] = useState(flow.name || "");
   const [desc, setDesc] = useState(flow.description || "");
   const [envId, setEnvId] = useState(flow.defaultEnvironmentId || "");
   const [loading, setLoading] = useState(false);
 
   async function handleUpdate() {
-    if (!name.trim()) return;
     setLoading(true);
     try {
-      await updateFlow(moduleId, flow.id, { name: name.trim(), description: desc.trim() });
+      // Update name/description if changed
+      const newName = name.trim();
+      const newDesc = desc.trim();
+      if (newName !== flow.name || newDesc !== (flow.description || "")) {
+        if (!newName) { alert("Flow name cannot be empty."); setLoading(false); return; }
+        await updateFlow(moduleId, flow.id, { name: newName, description: newDesc });
+      }
+      // Update env if changed
       if (envId !== (flow.defaultEnvironmentId || "")) {
         await setFlowEnvironment(flow.id, envId || null);
       }
@@ -361,14 +451,12 @@ function UpdateFlowModal({ moduleId, flow, onClose }) {
       <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
         <Input
           label="Flow Name"
-          placeholder="e.g. User Signup, Forgot Password"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          autoFocus
         />
         <Textarea
           label="Description"
-          placeholder="What scenarios does this flow cover?"
+          placeholder="Describe the purpose of this flow..."
           value={desc}
           onChange={(e) => setDesc(e.target.value)}
           rows={3}

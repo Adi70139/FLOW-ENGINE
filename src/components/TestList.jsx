@@ -3,7 +3,12 @@ import { useModules } from "../context/CollectionContext";
 import Badge from "./ui/badge/Badge";
 import IconButton from "./ui/icon-button/IconButton";
 import Button from "./ui/button/Button";
-import { IconStep, IconDelete, IconPlus, IconFlow } from "./ui/icons/Icons";
+import Modal from "./ui/modal/Modal";
+import Input from "./ui/input/Input";
+import Tabs from "./ui/tabs/Tabs";
+import Textarea from "./ui/textarea/Textarea";
+import { parseCurl } from "../utils/parseCurl";
+import { IconStep, IconDelete, IconPlus, IconFlow, IconEdit } from "./ui/icons/Icons";
 import styles from "./TestList.module.css";
 
 function TestList({ onAddTest }) {
@@ -14,7 +19,8 @@ function TestList({ onAddTest }) {
     dispatch, 
     deleteStep, 
     fetchSteps,
-    updateStep 
+    updateStep,
+    addStep
   } = useModules();
 
   useEffect(() => {
@@ -25,6 +31,8 @@ function TestList({ onAddTest }) {
 
   const tests = selectedFlow?.tests || [];
 
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingStep, setEditingStep] = useState(null);
   const [dragIndex, setDragIndex] = useState(null);
   const [dropIndex, setDropIndex] = useState(null);
 
@@ -85,6 +93,11 @@ function TestList({ onAddTest }) {
     dispatch({ type: "SELECT_STEP", id: stepId });
   }
 
+  function handleAddTest() {
+    if (!selectedFlowId) return;
+    setShowCreateModal(true);
+  }
+
   if (!selectedFlow) {
     return (
       <div className={styles.container}>
@@ -135,15 +148,27 @@ function TestList({ onAddTest }) {
               </Badge>
               <div className={styles.info}>
                 <div className={styles.name}>{t.name}</div>
-                {t.url && (
+                {t.endpoint && (
                   <div className={styles.meta}>
-                    {t.url.length > 40
-                      ? t.url.slice(0, 40) + "…"
-                      : t.url}
+                    {t.endpoint.length > 40
+                      ? t.endpoint.slice(0, 40) + "…"
+                      : t.endpoint}
                   </div>
                 )}
               </div>
               <div className={styles.actions}>
+                <IconButton
+                  size="small"
+                  variant="ghost"
+                  title="Edit step details"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingStep(t);
+                  }}
+                  style={{ marginRight: "4px" }}
+                >
+                  <IconEdit size={14} />
+                </IconButton>
                 <IconButton
                   size="small"
                   variant="danger"
@@ -166,13 +191,240 @@ function TestList({ onAddTest }) {
         <Button 
           variant="primary" 
           className={styles.addBtn}
-          onClick={onAddTest} 
+          onClick={handleAddTest} 
           icon={<IconPlus size={18} />}
         >
           Add New Step
         </Button>
       </div>
+      {showCreateModal && (
+        <CreateStepModal 
+          flowId={selectedFlowId} 
+          addStep={addStep} 
+          onClose={() => setShowCreateModal(false)} 
+        />
+      )}
+      {editingStep && (
+        <UpdateStepModal
+          step={editingStep}
+          flowId={selectedFlowId}
+          updateStep={updateStep}
+          onClose={() => setEditingStep(null)}
+        />
+      )}
     </div>
+  );
+}
+
+function CreateStepModal({ onClose, flowId, addStep }) {
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [retryCount, setRetryCount] = useState(0);
+  const [retryDelayMs, setRetryDelayMs] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleCreate() {
+    if (!name.trim()) return;
+    if (retryCount < 0 || retryCount > 8) {
+      setError("Retry count must be between 0 and 8.");
+      return;
+    }
+    if (retryDelayMs < 0 || retryDelayMs > 20000) {
+      setError("Retry delay must not exceed 20 seconds (20000 ms).");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      await addStep(flowId, {
+        name: name.trim(),
+        description: description.trim(),
+        method: "GET",
+        endpoint: "https://api.example.com",
+        headers: [],
+        payload: "",
+        retryCount: retryCount,
+        retryDelayMs: retryDelayMs
+      });
+      onClose();
+    } catch (err) {
+      setError(err.message || "Failed to create step");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Modal title="Create Step" onClose={onClose} size="sm">
+      <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+        <Input
+          label="Step Name"
+          placeholder="e.g. Get User Profile"
+          value={name}
+          onChange={(e) => {
+            setName(e.target.value);
+            setError("");
+          }}
+          autoFocus
+        />
+
+        <Textarea
+          label="Description"
+          placeholder="What does this step do?"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          rows={3}
+        />
+
+        <div style={{ display: "flex", gap: "16px" }}>
+          <div style={{ flex: 1 }}>
+            <Input
+              type="number"
+              min="0"
+              max="8"
+              label="Retry Count (0-8)"
+              placeholder="e.g. 3"
+              value={retryCount}
+              onChange={(e) => {
+                setRetryCount(parseInt(e.target.value) || 0);
+                setError("");
+              }}
+            />
+          </div>
+          <div style={{ flex: 1 }}>
+            <Input
+              type="number"
+              min="0"
+              max="20000"
+              step="100"
+              label="Retry Delay (max 20s)"
+              placeholder="e.g. 1000"
+              value={retryDelayMs}
+              onChange={(e) => {
+                setRetryDelayMs(parseInt(e.target.value) || 0);
+                setError("");
+              }}
+            />
+          </div>
+        </div>
+
+        {error && (
+          <span style={{ color: "var(--status-error)", fontSize: "var(--text-sm)" }}>
+            {error}
+          </span>
+        )}
+
+        <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+          <Button variant="secondary" onClick={onClose} disabled={loading}>Cancel</Button>
+          <Button onClick={handleCreate} disabled={loading}>{loading ? "Creating..." : "Create"}</Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function UpdateStepModal({ step, flowId, updateStep, onClose }) {
+  const [name, setName] = useState(step.name || "");
+  const [description, setDescription] = useState(step.description || "");
+  const [retryCount, setRetryCount] = useState(step.retryCount || 0);
+  const [retryDelayMs, setRetryDelayMs] = useState(step.retryDelayMs || 0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleSave() {
+    if (!name.trim()) return;
+    if (retryCount < 0 || retryCount > 8) {
+      setError("Retry count must be between 0 and 8.");
+      return;
+    }
+    if (retryDelayMs < 0 || retryDelayMs > 20000) {
+      setError("Retry delay must not exceed 20 seconds (20000 ms).");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      await updateStep(flowId, step.id, {
+        name: name.trim(),
+        description: description.trim(),
+        retryCount: retryCount,
+        retryDelayMs: retryDelayMs,
+      });
+      onClose();
+    } catch (err) {
+      setError(err.message || "Failed to update step");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Modal title="Update Step Settings" onClose={onClose} size="sm">
+      <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+        <Input
+          label="Step Name"
+          placeholder="e.g. Get User Profile"
+          value={name}
+          onChange={(e) => {
+            setName(e.target.value);
+            setError("");
+          }}
+          autoFocus
+        />
+
+        <Textarea
+          label="Description"
+          placeholder="What does this step do?"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          rows={3}
+        />
+
+        <div style={{ display: "flex", gap: "16px" }}>
+          <div style={{ flex: 1 }}>
+            <Input
+              type="number"
+              min="0"
+              max="8"
+              label="Retry Count (0-8)"
+              placeholder="e.g. 3"
+              value={retryCount}
+              onChange={(e) => {
+                setRetryCount(parseInt(e.target.value) || 0);
+                setError("");
+              }}
+            />
+          </div>
+          <div style={{ flex: 1 }}>
+            <Input
+              type="number"
+              min="0"
+              max="20000"
+              step="100"
+              label="Retry Delay (max 20s)"
+              placeholder="e.g. 1000"
+              value={retryDelayMs}
+              onChange={(e) => {
+                setRetryDelayMs(parseInt(e.target.value) || 0);
+                setError("");
+              }}
+            />
+          </div>
+        </div>
+
+        {error && (
+          <span style={{ color: "var(--status-error)", fontSize: "var(--text-sm)" }}>
+            {error}
+          </span>
+        )}
+
+        <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+          <Button variant="secondary" onClick={onClose} disabled={loading}>Cancel</Button>
+          <Button onClick={handleSave} disabled={loading}>{loading ? "Saving..." : "Save Changes"}</Button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 

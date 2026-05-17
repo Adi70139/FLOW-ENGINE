@@ -25,6 +25,12 @@
   color: var(--text-secondary);
 }
 
+.tab:focus,
+.tab:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
 .tab::after {
   content: '';
   position: absolute;
@@ -50,4 +56,24 @@
   font-size: 14px;
   display: flex;
   align-items: center;
+}
+
+.highlight {
+  background-color: var(--accent);
+  color: white;
+  border-radius: 4px 4px 0 0;
+}
+
+.highlight:hover {
+  background-color: var(--accent-hover);
+  color: white;
+}
+
+.highlight.active {
+  color: white;
+}
+
+.highlight.active::after {
+  background: white;
+  box-shadow: none;
 }

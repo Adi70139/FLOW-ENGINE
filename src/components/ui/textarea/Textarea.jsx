@@ -1,6 +1,6 @@
 import styles from "./Textarea.module.css";
 
-function Textarea({ value, onChange, placeholder, rows = 6, label, mono, className = "" }) {
+function Textarea({ value, onChange, placeholder, rows = 6, label, mono, className = "", ...props }) {
   return (
     <div className={`${styles.wrapper} ${className}`}>
       {label && <label className={styles.label}>{label}</label>}
@@ -10,6 +10,7 @@ function Textarea({ value, onChange, placeholder, rows = 6, label, mono, classNa
         onChange={onChange}
         placeholder={placeholder}
         rows={rows}
+        {...props}
       />
     </div>
   );

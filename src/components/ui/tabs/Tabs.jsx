@@ -7,7 +7,7 @@ function Tabs({ tabs = [], activeTab, onChange }) {
         <button
           key={tab.id}
           type="button"
-          className={`${styles.tab} ${activeTab === tab.id ? styles.active : ""}`}
+          className={`${styles.tab} ${activeTab === tab.id ? styles.active : ""} ${tab.highlight ? styles.highlight : ""}`}
           onClick={() => onChange(tab.id)}
         >
           {tab.icon && <span className={styles.tabIcon}>{tab.icon}</span>}

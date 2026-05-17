@@ -7,7 +7,7 @@ import IconButton from "./ui/icon-button/IconButton";
 import Modal from "./ui/modal/Modal";
 import Input from "./ui/input/Input";
 import Textarea from "./ui/textarea/Textarea";
-import { IconModule, IconPlus, IconPlay, IconDelete, IconFlow, IconStep, IconReport, IconDuplicate } from "./ui/icons/Icons";
+import { IconModule, IconPlus, IconPlay, IconDelete, IconFlow, IconStep, IconReport, IconDuplicate, IconEdit } from "./ui/icons/Icons";
 import styles from "./LandingPage.module.css";
 
 const slugify = (text) =>
@@ -29,6 +29,7 @@ function LandingPage() {
   const [editingModule, setEditingModule] = useState(null);
   const [showImport, setShowImport] = useState(false);
   const [importTargetModuleId, setImportTargetModuleId] = useState(null);
+  const [selectedEnvs, setSelectedEnvs] = useState({});
 
   const bulkExec = executions["bulk"];
   const bulkRunning = bulkExec?.status === "running";
@@ -37,7 +38,12 @@ function LandingPage() {
   async function handleBulkRun() {
     if (modules.length === 0 || bulkRunning) return;
     const ids = modules.map((m) => m.id);
-    const envIds = modules.map((m) => m.environments?.[0]?.id).filter(Boolean);
+    const envIds = modules.map((m) => {
+      // If user explicitly selected an env (even "No Env" = ""), use that
+      if (m.id in selectedEnvs) return selectedEnvs[m.id] || null;
+      // Otherwise fall back to first available environment
+      return m.environments?.[0]?.id || null;
+    });
 
     try {
       // Pass total count to context for UI progress tracking
@@ -112,11 +118,12 @@ function LandingPage() {
             {bulkRunning ? "Running..." : "Bulk Run All"}
           </Button>
 
-          {bulkDone && (
-            <Button variant="secondary" onClick={() => navigate("/report?type=bulk")}>
-              View Report
-            </Button>
-          )}
+          <Button 
+            variant="secondary" 
+            onClick={() => navigate("/report")}
+          >
+            View Reports
+          </Button>
         </div>
       </div>
 
@@ -125,7 +132,13 @@ function LandingPage() {
 
       <div className={styles.grid}>
         {modules.map((mod) => (
-          <ModuleCard key={mod.id} module={mod} onEdit={() => setEditingModule(mod)} />
+          <ModuleCard 
+            key={mod.id} 
+            module={mod} 
+            onEdit={() => setEditingModule(mod)} 
+            selectedEnv={mod.id in selectedEnvs ? selectedEnvs[mod.id] : String(mod.environments?.[0]?.id || "")}
+            onEnvChange={(envId) => setSelectedEnvs(prev => ({ ...prev, [mod.id]: envId }))}
+          />
         ))}
         {!loading && modules.length === 0 && (
           <div className={styles.emptyState}>
@@ -158,7 +171,7 @@ function LandingPage() {
   );
 }
 
-function ModuleCard({ module, onEdit }) {
+function ModuleCard({ module, onEdit, selectedEnv, onEnvChange }) {
   const { deleteModule, executeModule, executions } = useModules();
   const navigate = useNavigate();
 
@@ -166,7 +179,7 @@ function ModuleCard({ module, onEdit }) {
     e.stopPropagation();
     if (executions[module.id]?.status === "running") return;
     try {
-      await executeModule(module.id);
+      await executeModule(module.id, selectedEnv);
     } catch (err) {
       // handled in context
     }
@@ -205,7 +218,7 @@ function ModuleCard({ module, onEdit }) {
               onEdit();
             }}
           >
-            <IconPlus size={16} style={{ transform: "rotate(45deg)" }} />
+            <IconEdit size={16} />
           </IconButton>
           <IconButton variant="danger" size="small" onClick={handleDelete}>
             <IconDelete size={16} />
@@ -227,6 +240,38 @@ function ModuleCard({ module, onEdit }) {
           <IconStep size={16} className={styles.metaIcon} />
           <span>{testCount} Tests</span>
         </div>
+        {module.environments?.length > 0 && (
+          <div 
+            className={styles.metaItem} 
+            style={{ marginLeft: "auto" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <select
+              style={{ 
+                padding: "4px 8px", 
+                fontSize: "12px", 
+                height: "auto", 
+                minWidth: "120px",
+                background: "var(--bg-input)",
+                border: "1px solid var(--border)",
+                borderRadius: "6px",
+                cursor: "pointer",
+                outline: "none",
+              }}
+              value={String(selectedEnv || "")}
+              onChange={(e) => {
+                e.stopPropagation();
+                onEnvChange(e.target.value);
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <option value="">No Env</option>
+              {module.environments.map(env => (
+                <option key={env.id} value={String(env.id)}>{env.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       <div className={styles.cardActions}>
@@ -261,7 +306,7 @@ function ModuleCard({ module, onEdit }) {
               title="View Report"
               onClick={(e) => {
                 e.stopPropagation();
-                navigate(`/report?type=module&id=${module.id}`);
+                navigate(`/report?type=module&id=${exec.results?.moduleExecutionId}`);
               }}
             >
               <IconReport size={16} />

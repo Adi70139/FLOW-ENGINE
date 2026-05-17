@@ -33,7 +33,7 @@
   /* Method colors */
   --method-get: #10b981;
   --method-post: #0ea5e9;
-  --method-put: #3b82f6;
+  --method-put: #4c8bf0;
   --method-patch: #8b5cf6;
   --method-delete: #ef4444;
   --method-head: #64748b;
@@ -79,6 +79,12 @@
 * {
   box-sizing: border-box;
 }
+
+*:focus,
+*:focus-visible {
+  outline: none;
+}
+
 
 body {
   margin: 0;

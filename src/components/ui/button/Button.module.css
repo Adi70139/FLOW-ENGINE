@@ -14,6 +14,13 @@
   overflow: hidden;
 }
 
+.button:focus,
+.button:focus-visible {
+  outline: none !important;
+  box-shadow: 0 0 0 2px var(--accent-glow) !important;
+}
+
+
 .button::before {
   content: '';
   position: absolute;

@@ -9,6 +9,8 @@ function CreateStepModal({ onClose }) {
   const { selectedFlowId, addStep } = useModules();
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
+  const [retryCount, setRetryCount] = useState(0);
+  const [retryDelayMs, setRetryDelayMs] = useState(0);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -17,9 +19,23 @@ function CreateStepModal({ onClose }) {
       setError("Step name is required");
       return;
     }
+    if (retryCount < 0 || retryCount > 8) {
+      setError("Retry count must be between 0 and 8.");
+      return;
+    }
+    if (retryDelayMs < 0 || retryDelayMs > 20000) {
+      setError("Retry delay must not exceed 20 seconds (20000 ms).");
+      return;
+    }
     setLoading(true);
+    setError("");
     try {
-      await addStep(selectedFlowId, { name: name.trim(), description: desc.trim() });
+      await addStep(selectedFlowId, {
+        name: name.trim(),
+        description: desc.trim(),
+        retryCount,
+        retryDelayMs
+      });
       onClose();
     } catch (err) {
       setError(err.message || "Failed to create step");
@@ -50,11 +66,6 @@ function CreateStepModal({ onClose }) {
           autoFocus
           disabled={loading}
         />
-        {error && (
-          <span style={{ color: "var(--status-error)", fontSize: "var(--text-sm)" }}>
-            {error}
-          </span>
-        )}
         <Textarea
           label="Description (optional)"
           value={desc}
@@ -63,6 +74,44 @@ function CreateStepModal({ onClose }) {
           rows={3}
           disabled={loading}
         />
+        <div style={{ display: "flex", gap: "16px" }}>
+          <div style={{ flex: 1 }}>
+            <Input
+              type="number"
+              min="0"
+              max="8"
+              label="Retry Count (0-8)"
+              placeholder="e.g. 3"
+              value={retryCount}
+              onChange={(e) => {
+                setRetryCount(parseInt(e.target.value) || 0);
+                setError("");
+              }}
+              disabled={loading}
+            />
+          </div>
+          <div style={{ flex: 1 }}>
+            <Input
+              type="number"
+              min="0"
+              max="20000"
+              step="100"
+              label="Retry Delay (max 20s)"
+              placeholder="e.g. 1000"
+              value={retryDelayMs}
+              onChange={(e) => {
+                setRetryDelayMs(parseInt(e.target.value) || 0);
+                setError("");
+              }}
+              disabled={loading}
+            />
+          </div>
+        </div>
+        {error && (
+          <span style={{ color: "var(--status-error)", fontSize: "var(--text-sm)" }}>
+            {error}
+          </span>
+        )}
         <div style={{ display: "flex", gap: "var(--space-sm)", justifyContent: "flex-end", marginTop: "var(--space-sm)" }}>
           <Button variant="secondary" onClick={onClose} disabled={loading}>
             Cancel

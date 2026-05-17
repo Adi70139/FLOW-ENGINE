@@ -10,14 +10,16 @@ import KeyValueTable from "./KeyValueTable";
 import ParameterizeModal from "./ParameterizeModal";
 import EmptyState from "./ui/empty-state/EmptyState";
 import { parseCurl } from "../utils/parseCurl";
+import { api } from "../utils/api";
 import styles from "./RequestEditor.module.css";
+import { useEffect } from "react";
 
 const REQUEST_TABS = [
   { id: "headers", label: "Headers" },
   { id: "body", label: "Body" },
   { id: "assertions", label: "Assertions" },
   { id: "extract", label: "Tests/Extract" },
-  { id: "curl", label: "Import cURL" },
+  { id: "curl", label: "Import cURL", highlight: true },
 ];
 
 function RequestEditor() {
@@ -29,6 +31,15 @@ function RequestEditor() {
   const [curlInput, setCurlInput] = useState("");
   const [curlParsed, setCurlParsed] = useState(null);
   const [showParameterize, setShowParameterize] = useState(false);
+  const [assertionPrompt, setAssertionPrompt] = useState("");
+  const [assertionResponseBody, setAssertionResponseBody] = useState("");
+  const [assertionError, setAssertionError] = useState("");
+  const [generatingAssertions, setGeneratingAssertions] = useState(false);
+  const [schemaInput, setSchemaInput] = useState("");
+
+  useEffect(() => {
+    setSchemaInput(selectedStep?.assertions?.schema ? JSON.stringify(selectedStep.assertions.schema, null, 2) : "");
+  }, [selectedStepId, selectedStep?.assertions?.schema]);
 
   if (!selectedStep) {
     return (
@@ -125,7 +136,30 @@ function RequestEditor() {
     });
   }
 
+  async function handleGenerateAssertions() {
+    const responseBody = assertionResponseBody.trim() || selectedStep.response?.body || "";
+    const description = assertionPrompt.trim();
+
+    if (!responseBody || !description) {
+      setAssertionError("Enter both a response body and the assertion description.");
+      return;
+    }
+
+    setGeneratingAssertions(true);
+    setAssertionError("");
+
+    try {
+      const assertions = await api.generateAssertions({ responseBody, description });
+      update({ assertions });
+    } catch (err) {
+      setAssertionError(err.message || "Failed to generate assertions.");
+    } finally {
+      setGeneratingAssertions(false);
+    }
+  }
+
   const hasPayload = !!(selectedStep.payload && selectedStep.payload.trim());
+  const responseBodyForGenerator = assertionResponseBody || selectedStep.response?.body || "";
 
   return (
     <div className={styles.editor}>
@@ -209,6 +243,48 @@ function RequestEditor() {
 
         {activeTab === "assertions" && (
           <div className={styles.assertionsSection}>
+            <div className={styles.generateAssertions}>
+              <div className={styles.generateHeader}>
+                <div>
+                  <h3>Generate Assertions</h3>
+                  <p className={styles.tabDescription}>
+                    Describe the checks in English and generate structured assertion JSON from the response body.
+                  </p>
+                  <p className={styles.aiNote}>
+                    AI-generated assertions can be wrong. Please review and verify them before saving or running the flow.
+                  </p>
+                </div>
+                <Button
+                  size="small"
+                  onClick={handleGenerateAssertions}
+                  disabled={generatingAssertions}
+                >
+                  {generatingAssertions ? "Generating..." : "Generate"}
+                </Button>
+              </div>
+
+              <Textarea
+                label="English Description"
+                placeholder="e.g. Status code should be 200, id should exist, and status should be active."
+                rows={3}
+                value={assertionPrompt}
+                onChange={(e) => setAssertionPrompt(e.target.value)}
+              />
+
+              <Textarea
+                label="Response Body"
+                placeholder="Run the request first, or paste a sample response JSON here."
+                rows={6}
+                mono
+                value={responseBodyForGenerator}
+                onChange={(e) => setAssertionResponseBody(e.target.value)}
+              />
+
+              {assertionError && (
+                <div className={styles.assertionError}>{assertionError}</div>
+              )}
+            </div>
+
             <div className={styles.assertionRow}>
               <label>Expected Status Code</label>
               <Input
@@ -224,12 +300,15 @@ function RequestEditor() {
                 placeholder="Enter JSON Schema to validate response body"
                 rows={5}
                 mono
-                value={selectedStep.assertions?.schema ? JSON.stringify(selectedStep.assertions.schema, null, 2) : ""}
-                onChange={(e) => {
+                value={schemaInput}
+                onChange={(e) => setSchemaInput(e.target.value)}
+                onBlur={() => {
                   try {
-                    const schema = e.target.value ? JSON.parse(e.target.value) : null;
+                    const schema = schemaInput.trim() ? JSON.parse(schemaInput) : null;
                     update({ assertions: { ...selectedStep.assertions, schema } });
-                  } catch (err) {}
+                  } catch (err) {
+                    // Do nothing on invalid JSON typing
+                  }
                 }}
               />
             </div>

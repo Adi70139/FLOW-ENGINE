@@ -40,6 +40,28 @@
   gap: 8px;
 }
 
+.sectionBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s var(--ease);
+  font-family: var(--font-main);
+}
+
+.sectionBtn:hover {
+  background: rgba(16, 185, 129, 0.08);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 /* ── Collection / Flow Item ── */
 .collection {
   border-radius: 16px;
@@ -229,4 +251,35 @@
   color: var(--text-muted);
   margin-top: 4px;
   font-style: italic;
+}
+
+/* ── Bulk Flow Run ── */
+.bulkBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: rgba(16, 185, 129, 0.06);
+  border: 1px solid rgba(16, 185, 129, 0.12);
+  border-radius: 10px;
+  gap: 8px;
+}
+
+.selectAllLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.flowCheckbox {
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+  accent-color: var(--accent);
+  flex-shrink: 0;
 }

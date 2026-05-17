@@ -170,16 +170,29 @@ function ModuleView({ data }) {
       <div className={styles.sectionTitle}>Flow Executions</div>
       <div className={styles.list}>
         {(data.flows || []).map((flow, i) => (
-          <div key={i} className={styles.listItem}>
-            <div className={styles.itemInfo}>
-              <IconFlow size={20} className={styles.itemIcon} />
-              <div>
-                <h3>{flow.flowName}</h3>
-                <p>{flow.steps?.length || 0} Steps • {fmtMs(flow.durationMs)}</p>
+          <div key={i} style={{ marginBottom: "32px" }}>
+            <div className={styles.listItem} style={{ marginBottom: "16px" }}>
+              <div className={styles.itemInfo}>
+                <IconFlow size={20} className={styles.itemIcon} />
+                <div>
+                  <h3>{flow.flowName}</h3>
+                  <p>{flow.steps?.length || 0} Steps • {fmtMs(flow.durationMs)}</p>
+                </div>
+              </div>
+              <div className={styles.itemActions}>
+                <Badge variant={statusVariant(flow.status)}>{flow.status}</Badge>
               </div>
             </div>
-            <div className={styles.itemActions}>
-              <Badge variant={statusVariant(flow.status)}>{flow.status}</Badge>
+
+            <div className={styles.stepsList} style={{ marginLeft: "24px", paddingLeft: "16px", borderLeft: "2px solid var(--border)" }}>
+              {(flow.steps || []).map((step, idx) => (
+                <StepDetail key={step.stepId || idx} step={step} />
+              ))}
+              {(flow.steps || []).length === 0 && (
+                <div className={styles.emptySteps} style={{ color: "var(--text-muted)", fontSize: "14px" }}>
+                  No steps were executed in this flow.
+                </div>
+              )}
             </div>
           </div>
         ))}
@@ -248,10 +261,8 @@ function Report() {
   const { modules, executions } = useModules();
 
   const query = useMemo(() => new URLSearchParams(location.search), [location.search]);
-  const typeParam = query.get("type") || "summary";
+  const activeTab = query.get("type") || "summary";
   const idParam = query.get("id");
-
-  const [activeTab, setActiveTab] = useState(typeParam);
   const [loading, setLoading] = useState(false);
   const [reportData, setReportData] = useState(null);
   const [error, setError] = useState(null);
@@ -262,7 +273,7 @@ function Report() {
       // Unique-ify by execution ID
       const seen = new Set();
       return raw.filter(item => {
-        const uid = item.results?.bulkJobId || item.results?.moduleExecutionId || item.results?.flowExecutionId || `${item.type}-${item.id}-${item.finishedAt}`;
+        const uid = item.results?.bulkJobId || item.results?.moduleExecutionId || item.results?.flowId || `${item.type}-${item.id}-${item.finishedAt}`;
         if (seen.has(uid)) return false;
         seen.add(uid);
         return true;
@@ -297,7 +308,7 @@ function Report() {
         // For dashboard, show latest bulk or module run
         const latest = history[0];
         if (latest) {
-          const id = latest.results?.bulkJobId || latest.results?.moduleExecutionId || latest.results?.flowExecutionId;
+          const id = latest.results?.bulkJobId || latest.results?.moduleExecutionId || latest.results?.flowId;
           if (latest.type === "bulk") data = await api.getBulkReportData(id);
           else if (latest.type === "module") data = await api.getModuleReportData(id);
           else if (latest.type === "flow") data = await api.getFlowReportData(id);
@@ -318,10 +329,29 @@ function Report() {
 
   // Handle sidebar navigation
   const handleHistoryClick = (item) => {
-    const id = item.results?.bulkJobId || item.results?.moduleExecutionId || item.results?.flowExecutionId;
-    setActiveTab(item.type);
+    const id = item.results?.bulkJobId || item.results?.moduleExecutionId || item.results?.flowId;
     navigate(`/report?type=${item.type}&id=${id}`, { replace: true });
   };
+
+  const getDownloadUrl = () => {
+    if (!reportData) return null;
+    if (activeTab === "summary") {
+      const latest = history[0];
+      if (!latest) return null;
+      const id = latest.results?.bulkJobId || latest.results?.moduleExecutionId || latest.results?.flowId;
+      if (!id) return null;
+      if (latest.type === "bulk") return api.getBulkReport(id);
+      if (latest.type === "module") return api.getModuleReport(id);
+      if (latest.type === "flow") return api.getFlowReport(id);
+    } else if (idParam) {
+      if (activeTab === "bulk") return api.getBulkReport(idParam);
+      if (activeTab === "module") return api.getModuleReport(idParam);
+      if (activeTab === "flow") return api.getFlowReport(idParam);
+    }
+    return null;
+  };
+
+  const downloadUrl = getDownloadUrl();
 
   return (
     <div className={styles.container}>
@@ -335,7 +365,7 @@ function Report() {
             <HistoryItem
               key={i}
               item={item}
-              active={idParam === String(item.results?.bulkJobId || item.results?.moduleExecutionId || item.results?.flowExecutionId)}
+              active={idParam === String(item.results?.bulkJobId || item.results?.moduleExecutionId || item.results?.flowId)}
               onClick={() => handleHistoryClick(item)}
             />
           ))}
@@ -355,6 +385,16 @@ function Report() {
             </div>
           </div>
           <div className={styles.headerRight}>
+            {downloadUrl && (
+              <Button
+                variant="primary"
+                size="small"
+                onClick={() => window.open(downloadUrl, "_blank")}
+                icon="📥"
+              >
+                Export PDF
+              </Button>
+            )}
             <Button variant="secondary" size="small" onClick={fetchData} disabled={loading} icon={loading ? <span className={styles.spinner} /> : "↻"}>
               Refresh
             </Button>
@@ -367,8 +407,8 @@ function Report() {
               key={tab.key}
               className={`${styles.tab} ${activeTab === tab.key ? styles.active : ""}`}
               onClick={() => {
-                setActiveTab(tab.key);
                 if (tab.key === 'summary') navigate('/report?type=summary', { replace: true });
+                else navigate(`/report?type=${tab.key}`, { replace: true });
               }}
             >
               {tab.label}

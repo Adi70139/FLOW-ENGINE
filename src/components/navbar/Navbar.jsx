@@ -14,6 +14,8 @@ function Navbar() {
   const [showEnvModal, setShowEnvModal] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
 
+  const isHomePage = location.pathname === "/";
+  const isModulePage = location.pathname.startsWith("/module/");
   const environments = selectedModule?.environments || [];
   const activeEnv = environments.find(e => e.id == selectedEnvId);
 
@@ -22,9 +24,9 @@ function Navbar() {
       <div className={styles.left}>
         <div className={styles.logo} onClick={() => navigate("/")}>
           <IconModule size={24} className={styles.logoIcon} />
-          <span className={styles.logoText}>MrAutomation</span>
+          <span className={styles.logoText}>Flow Engine</span>
         </div>
-        {selectedModule && !location.pathname.startsWith("/report") && (
+        {isModulePage && selectedModule && (
           <div className={styles.breadcrumb}>
             <span className={styles.separator}>/</span>
             <span className={styles.moduleName}>{selectedModule.name}</span>
@@ -33,7 +35,7 @@ function Navbar() {
       </div>
       
       <div className={styles.right}>
-        {selectedModule && (
+        {isModulePage && selectedModule && (
           <div className={styles.controls}>
             <div className={styles.envSelector}>
               <span className={styles.envLabel}>Env:</span>
@@ -64,14 +66,16 @@ function Navbar() {
           </div>
         )}
 
-        <Button 
-          variant="secondary" 
-          size="small" 
-          onClick={() => navigate("/")}
-          icon={<IconBack size={16} />}
-        >
-          Dashboard
-        </Button>
+        {!isHomePage && (
+          <Button
+            variant="secondary"
+            size="small"
+            onClick={() => navigate("/")}
+            icon={<IconBack size={16} />}
+          >
+            Dashboard
+          </Button>
+        )}
       </div>
 
       {showEnvModal && <EnvironmentModal onClose={() => setShowEnvModal(false)} />}

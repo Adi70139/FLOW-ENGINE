@@ -37,6 +37,8 @@ export default function App() {
     if (m) {
       const id = m[1];
       dispatch({ type: "SELECT_MODULE", id });
+    } else if (location.pathname === "/") {
+      dispatch({ type: "SELECT_MODULE", id: null });
     }
   }, [location.pathname]);
 

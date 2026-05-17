@@ -71,6 +71,7 @@ function EnvironmentModal({ onClose }) {
         delete next[activeEnvId];
         return next;
       });
+      onClose();
     } catch (e) {
       console.error("Failed to update variables:", e);
       alert("Failed to save variables");

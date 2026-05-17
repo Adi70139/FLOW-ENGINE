@@ -1,68 +1,137 @@
+/* ============================================================
+   KeyValueTable — Styles aligned with Design System
+   ============================================================ */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
 .table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  background: rgba(0, 0, 0, 0.01);
+  background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: 12px;
   overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
-.th {
-  background: rgba(0, 0, 0, 0.03);
+.table thead {
+  background: rgba(16, 185, 129, 0.04);
+}
+
+.table th {
   padding: 12px 16px;
-  text-align: left;
   font-size: 11px;
-  font-weight: 800;
-  color: var(--text-muted);
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
   border-bottom: 1px solid var(--border);
+  text-align: left;
 }
 
-.td {
+/* Columns */
+.toggleCol {
+  width: 50px;
+  text-align: center;
+  vertical-align: middle;
+  padding: 10px 14px;
+}
+
+.keyCol {
+  width: 45%;
   padding: 8px 12px;
+}
+
+.valCol {
+  width: 45%;
+  padding: 8px 12px;
+}
+
+.actionCol {
+  width: 60px;
+  text-align: center;
+  padding: 8px 12px;
+}
+
+.table td {
   border-bottom: 1px solid var(--border);
   vertical-align: middle;
 }
 
-.row:last-child .td {
+.table tr:last-child td {
   border-bottom: none;
 }
 
-.input {
+/* Row states */
+.disabledRow {
+  opacity: 0.55;
+  background: rgba(0, 0, 0, 0.02);
+}
+
+/* Checkbox Toggle */
+.toggle {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--accent);
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  transition: all 0.2s var(--ease);
+}
+
+.toggle:focus {
+  outline: none;
+}
+
+/* Inputs inside cells */
+.cellInput {
   width: 100%;
-  background: transparent !important;
-  border: 1px solid transparent !important;
+  background: var(--bg-root) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 8px !important;
+  padding: 8px 12px !important;
+  font-family: var(--font-main);
   font-size: 13px !important;
-  padding: 6px 10px !important;
-  transition: all 0.2s !important;
+  color: var(--text-primary) !important;
+  transition: all 0.2s var(--ease) !important;
+  outline: none !important;
 }
 
-.input:focus {
-  background: white !important;
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.1) !important;
-}
-
-.actions {
-  display: flex;
-  justify-content: center;
-  gap: 4px;
-}
-
-.empty {
-  padding: 24px;
-  text-align: center;
+.cellInput::placeholder {
   color: var(--text-muted);
-  font-size: 13px;
-  font-style: italic;
 }
 
+.cellInput:hover {
+  border-color: var(--border-hover) !important;
+  background: var(--bg-elevated) !important;
+}
+
+.cellInput:focus {
+  border-color: var(--accent) !important;
+  background: var(--bg-elevated) !important;
+  box-shadow: 0 0 0 2px var(--accent-glow) !important;
+}
+
+/* Delete Button */
+.deleteBtn {
+  color: var(--text-muted) !important;
+  transition: all 0.2s var(--ease) !important;
+}
+
+.deleteBtn:hover {
+  color: var(--status-error) !important;
+  background: rgba(239, 68, 68, 0.1) !important;
+}
+
+/* Footer Section */
 .footer {
-  padding: 12px;
   display: flex;
   justify-content: flex-start;
-  background: rgba(0, 0, 0, 0.01);
-  border-top: 1px solid var(--border);
+  padding-top: 4px;
 }
