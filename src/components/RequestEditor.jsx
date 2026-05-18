@@ -215,6 +215,19 @@ function RequestEditor() {
     }
   }
 
+  // ── Beautify Response Body ──
+  function handleBeautifyResponseBody() {
+    const body = assertionResponseBody || selectedStep.response?.body || "";
+    if (!body) return;
+    try {
+      const parsed = typeof body === "string" ? JSON.parse(body) : body;
+      const formatted = JSON.stringify(parsed, null, 2);
+      setAssertionResponseBody(formatted);
+    } catch (err) {
+      alert("Invalid JSON format. Please verify standard JSON syntax before beautifying.");
+    }
+  }
+
   async function handleGenerateAssertions() {
     const responseBody = assertionResponseBody.trim() || selectedStep.response?.body || "";
     const description = assertionPrompt.trim();
@@ -363,7 +376,36 @@ function RequestEditor() {
               <Textarea
                 label={
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                    <span>Response Body</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span>Response Body</span>
+                      {responseBodyForGenerator && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handleBeautifyResponseBody();
+                          }}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            color: "var(--accent)",
+                            fontSize: "11px",
+                            fontWeight: "700",
+                            cursor: "pointer",
+                            padding: "2px 6px",
+                            borderRadius: "4px",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "3px",
+                            transition: "background 0.2s"
+                          }}
+                          onMouseOver={(e) => e.target.style.background = "rgba(16, 185, 129, 0.08)"}
+                          onMouseOut={(e) => e.target.style.background = "none"}
+                        >
+                          ✨ Beautify
+                        </button>
+                      )}
+                    </div>
                     <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", fontWeight: "normal", fontStyle: "italic" }}>
                       Run the flow once to get the response for adding/editing the assertions
                     </span>
