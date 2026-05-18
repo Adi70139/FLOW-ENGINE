@@ -51,8 +51,13 @@ function RequestEditor() {
         enabled: true
       })));
       setHasChanges(false);
+
+      // Reset assertion generator text areas and states for this step
+      setAssertionResponseBody(selectedStep.response?.body || "");
+      setAssertionPrompt("");
+      setAssertionError("");
     }
-  }, [selectedStepId, selectedStep?.assertions]);
+  }, [selectedStepId, selectedStep?.assertions, selectedStep?.response]);
 
   if (!selectedStep) {
     return (
