@@ -202,6 +202,19 @@ function RequestEditor() {
     });
   }
 
+  // ── Beautify JSON ──
+  function handleBeautify() {
+    const payload = selectedStep.payload;
+    if (!payload) return;
+    try {
+      const parsed = typeof payload === "string" ? JSON.parse(payload) : payload;
+      const formatted = JSON.stringify(parsed, null, 2);
+      update({ payload: formatted });
+    } catch (err) {
+      alert("Invalid JSON format. Please verify standard JSON syntax before beautifying.");
+    }
+  }
+
   async function handleGenerateAssertions() {
     const responseBody = assertionResponseBody.trim() || selectedStep.response?.body || "";
     const description = assertionPrompt.trim();
@@ -288,6 +301,16 @@ function RequestEditor() {
               label="Request Body (JSON)"
             />
             <div className={styles.bodyActions}>
+              <Button
+                variant="secondary"
+                size="small"
+                icon="✨"
+                onClick={handleBeautify}
+                disabled={!hasPayload}
+                style={{ marginRight: "8px" }}
+              >
+                Beautify JSON
+              </Button>
               <Button
                 variant="secondary"
                 size="small"
