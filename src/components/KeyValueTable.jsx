@@ -15,21 +15,21 @@ function KeyValueTable({
     rows.length ? rows : [{ key: "", value: "", enabled: true }]
   );
 
-  // Track the last emitted rows to avoid re-syncing when the parent updates with what we just sent
-  const lastEmittedRef = useRef(rows);
-
   useEffect(() => {
-    if (rows !== lastEmittedRef.current) {
+    const parentNonEmpty = rows.filter(r => r.key?.trim() || r.value?.trim());
+    const localNonEmpty = localRows.filter(r => r.key?.trim() || r.value?.trim());
+    
+    if (JSON.stringify(parentNonEmpty) !== JSON.stringify(localNonEmpty)) {
       setLocalRows(rows.length ? rows : [{ key: "", value: "", enabled: true }]);
-      lastEmittedRef.current = rows;
     }
-  }, [rows]);
+  }, [rows, localRows]);
+
 
   function emit(nextRows) {
     setLocalRows(nextRows);
-    lastEmittedRef.current = nextRows;
     onChange && onChange(nextRows);
   }
+
 
 
   function updateRow(i, patch) {

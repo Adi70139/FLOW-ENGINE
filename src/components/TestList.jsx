@@ -9,6 +9,9 @@ import Tabs from "./ui/tabs/Tabs";
 import Textarea from "./ui/textarea/Textarea";
 import { parseCurl } from "../utils/parseCurl";
 import { IconStep, IconDelete, IconPlus, IconFlow, IconEdit } from "./ui/icons/Icons";
+import FlowTrends from "./FlowTrends";
+import FlowHistory from "./FlowHistory";
+import FlowDependencyGraph from "./FlowDependencyGraph";
 import styles from "./TestList.module.css";
 
 function TestList({ onAddTest }) {
@@ -26,11 +29,13 @@ function TestList({ onAddTest }) {
   useEffect(() => {
     if (selectedFlowId) {
       fetchSteps(selectedFlowId);
+      setActiveTab("steps");
     }
   }, [selectedFlowId]);
 
   const tests = selectedFlow?.tests || [];
 
+  const [activeTab, setActiveTab] = useState("steps");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingStep, setEditingStep] = useState(null);
   const [dragIndex, setDragIndex] = useState(null);
@@ -110,93 +115,126 @@ function TestList({ onAddTest }) {
     );
   }
 
+  const PANE_TABS = [
+    { id: "steps", label: "Steps" },
+    { id: "trends", label: "Trends" },
+    { id: "history", label: "History" },
+    { id: "graph", label: "Graph" }
+  ];
+
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <h3 className={styles.title}>Steps ({tests.length})</h3>
+        <div style={{ display: "flex", flexDirection: "column", gap: "14px", width: "100%" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h3 className={styles.title} style={{ color: "var(--text-primary)", fontSize: "15px", fontWeight: "800", textTransform: "none", letterSpacing: "normal" }}>
+              {selectedFlow.name}
+            </h3>
+            <span style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+              {activeTab === "steps" ? `${tests.length} steps` : activeTab}
+            </span>
+          </div>
+          <Tabs tabs={PANE_TABS} activeTab={activeTab} onChange={setActiveTab} />
+        </div>
       </div>
 
-      <div className={styles.list}>
-        {tests.length === 0 && (
-          <div className={styles.empty}>
-            <IconStep size={40} style={{ opacity: 0.1, marginBottom: 12 }} />
-            <p>No steps yet. Create one to start automating.</p>
-          </div>
-        )}
-
-        {tests.map((t, i) => (
-          <div key={t.id}>
-            {dropIndex === i && dragIndex !== i && dragIndex !== i - 1 && (
-              <div className={styles.dropIndicator} />
+      {activeTab === "steps" && (
+        <>
+          <div className={styles.list}>
+            {tests.length === 0 && (
+              <div className={styles.empty}>
+                <IconStep size={40} style={{ opacity: 0.1, marginBottom: 12 }} />
+                <p>No steps yet. Create one to start automating.</p>
+              </div>
             )}
 
-            <div
-              className={`${styles.item} ${t.id === selectedStepId ? styles.active : ""} ${dragIndex === i ? styles.dragging : ""}`}
-              draggable
-              onDragStart={(e) => handleDragStart(e, i)}
-              onDragOver={(e) => handleDragOver(e, i)}
-              onDragLeave={handleDragLeave}
-              onDrop={(e) => handleDrop(e, i)}
-              onDragEnd={handleDragEnd}
-              onClick={() => handleSelect(t.id)}
-            >
-              <span className={styles.dragHandle} title="Drag to reorder">
-                ⋮⋮
-              </span>
-              <Badge variant={t.method?.toLowerCase() || "get"}>
-                {t.method || "GET"}
-              </Badge>
-              <div className={styles.info}>
-                <div className={styles.name}>{t.name}</div>
-                {t.endpoint && (
-                  <div className={styles.meta}>
-                    {t.endpoint.length > 40
-                      ? t.endpoint.slice(0, 40) + "…"
-                      : t.endpoint}
-                  </div>
+            {tests.map((t, i) => (
+              <div key={t.id}>
+                {dropIndex === i && dragIndex !== i && dragIndex !== i - 1 && (
+                  <div className={styles.dropIndicator} />
                 )}
-              </div>
-              <div className={styles.actions}>
-                <IconButton
-                  size="small"
-                  variant="ghost"
-                  title="Edit step details"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setEditingStep(t);
-                  }}
-                  style={{ marginRight: "4px" }}
+
+                <div
+                  className={`${styles.item} ${t.id === selectedStepId ? styles.active : ""} ${dragIndex === i ? styles.dragging : ""}`}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, i)}
+                  onDragOver={(e) => handleDragOver(e, i)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, i)}
+                  onDragEnd={handleDragEnd}
+                  onClick={() => handleSelect(t.id)}
                 >
-                  <IconEdit size={14} />
-                </IconButton>
-                <IconButton
-                  size="small"
-                  variant="danger"
-                  title="Delete test"
-                  onClick={(e) => handleDelete(e, t.id)}
-                >
-                  <IconDelete size={14} />
-                </IconButton>
+                  <span className={styles.dragHandle} title="Drag to reorder">
+                    ⋮⋮
+                  </span>
+                  <Badge variant={t.method?.toLowerCase() || "get"}>
+                    {t.method || "GET"}
+                  </Badge>
+                  <div className={styles.info}>
+                    <div className={styles.name}>{t.name}</div>
+                    {t.endpoint && (
+                      <div className={styles.meta}>
+                        {t.endpoint.length > 40
+                          ? t.endpoint.slice(0, 40) + "…"
+                          : t.endpoint}
+                      </div>
+                    )}
+                  </div>
+                  <div className={styles.actions}>
+                    <IconButton
+                      size="small"
+                      variant="ghost"
+                      title="Edit step details"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingStep(t);
+                      }}
+                      style={{ marginRight: "4px" }}
+                    >
+                      <IconEdit size={14} />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      variant="danger"
+                      title="Delete test"
+                      onClick={(e) => handleDelete(e, t.id)}
+                    >
+                      <IconDelete size={14} />
+                    </IconButton>
+                  </div>
+                </div>
               </div>
-            </div>
+            ))}
+
+            {dropIndex === tests.length && dragIndex !== tests.length - 1 && (
+              <div className={styles.dropIndicator} />
+            )}
           </div>
-        ))}
 
-        {dropIndex === tests.length && dragIndex !== tests.length - 1 && (
-          <div className={styles.dropIndicator} />
-        )}
-      </div>
+          <div className={styles.footer}>
+            <Button 
+              variant="primary" 
+              className={styles.addBtn}
+              onClick={handleAddTest} 
+              icon={<IconPlus size={18} />}
+            >
+              Add New Step
+            </Button>
+          </div>
+        </>
+      )}
 
-      <div className={styles.footer}>
-        <Button 
-          variant="primary" 
-          className={styles.addBtn}
-          onClick={handleAddTest} 
-          icon={<IconPlus size={18} />}
-        >
-          Add New Step
-        </Button>
-      </div>
+      {activeTab === "trends" && (
+        <FlowTrends flowId={selectedFlowId} />
+      )}
+
+      {activeTab === "history" && (
+        <FlowHistory flowId={selectedFlowId} />
+      )}
+
+      {activeTab === "graph" && (
+        <FlowDependencyGraph flowId={selectedFlowId} />
+      )}
       {showCreateModal && (
         <CreateStepModal 
           flowId={selectedFlowId} 

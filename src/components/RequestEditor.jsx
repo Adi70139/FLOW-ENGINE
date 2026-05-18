@@ -23,7 +23,7 @@ const REQUEST_TABS = [
 ];
 
 function RequestEditor() {
-  const { selectedStep, selectedFlowId, selectedStepId, updateStep } =
+  const { selectedStep, selectedFlowId, selectedStepId, updateStep, selectedEnv } =
     useModules();
 
   const [activeTab, setActiveTab] = useState("headers");
@@ -35,11 +35,24 @@ function RequestEditor() {
   const [assertionResponseBody, setAssertionResponseBody] = useState("");
   const [assertionError, setAssertionError] = useState("");
   const [generatingAssertions, setGeneratingAssertions] = useState(false);
-  const [schemaInput, setSchemaInput] = useState("");
+
+  const [localStatusCode, setLocalStatusCode] = useState("");
+  const [localSchemaInput, setLocalSchemaInput] = useState("");
+  const [localBodyRows, setLocalBodyRows] = useState([]);
+  const [hasChanges, setHasChanges] = useState(false);
 
   useEffect(() => {
-    setSchemaInput(selectedStep?.assertions?.schema ? JSON.stringify(selectedStep.assertions.schema, null, 2) : "");
-  }, [selectedStepId, selectedStep?.assertions?.schema]);
+    if (selectedStep) {
+      setLocalStatusCode(selectedStep.assertions?.statusCode || "");
+      setLocalSchemaInput(selectedStep.assertions?.schema ? JSON.stringify(selectedStep.assertions.schema, null, 2) : "");
+      setLocalBodyRows(Object.entries(selectedStep.assertions?.body || {}).map(([key, value]) => ({
+        key,
+        value: typeof value === 'object' ? JSON.stringify(value) : String(value),
+        enabled: true
+      })));
+      setHasChanges(false);
+    }
+  }, [selectedStepId, selectedStep?.assertions]);
 
   if (!selectedStep) {
     return (
@@ -55,30 +68,77 @@ function RequestEditor() {
     updateStep(selectedFlowId, selectedStepId, patch);
   }
 
+  function handleSaveAssertions() {
+    let schema = null;
+    try {
+      schema = localSchemaInput.trim() ? JSON.parse(localSchemaInput) : null;
+    } catch (err) {
+      alert("Invalid JSON Schema structure: " + err.message);
+      return;
+    }
+
+    const body = localBodyRows.reduce((acc, row) => {
+      if (row.key) {
+        try {
+          acc[row.key] = JSON.parse(row.value);
+        } catch {
+          acc[row.key] = row.value;
+        }
+      }
+      return acc;
+    }, {});
+
+    update({
+      assertions: {
+        statusCode: localStatusCode ? parseInt(localStatusCode) || null : null,
+        schema,
+        body
+      }
+    });
+    setHasChanges(false);
+  }
+
+  // Helper to substitute both {{key}} and {key}
+  function substitute(str) {
+    if (typeof str !== "string") return str;
+    const variables = selectedEnv?.variables || {};
+    return str.replace(/\{{1,2}(.+?)\}{1,2}/g, (match, key) => {
+      const trimmed = key.trim();
+      return variables[trimmed] !== undefined ? variables[trimmed] : match;
+    });
+  }
+
   // ── Send request ──
   async function sendRequest() {
     if (!selectedStep.endpoint) return;
     setLoading(true);
     const startTime = performance.now();
 
-    try {
-      const enabledHeaders = (selectedStep.headers || [])
-        .filter((h) => h.enabled !== false && h.key)
-        .reduce((acc, h) => {
-          acc[h.key] = h.value;
-          return acc;
-        }, {});
+    const resolvedUrl = substitute(selectedStep.endpoint);
+    const resolvedHeaders = (selectedStep.headers || [])
+      .filter((h) => h.enabled !== false && h.key)
+      .reduce((acc, h) => {
+        acc[h.key] = substitute(h.value);
+        return acc;
+      }, {});
 
+    let resolvedBody = undefined;
+    const methodUpper = (selectedStep.method || "GET").toUpperCase();
+    if (["POST", "PUT", "PATCH", "DELETE"].includes(methodUpper)) {
+      resolvedBody = substitute(selectedStep.payload);
+    }
+
+    try {
       const opts = {
         method: selectedStep.method || "GET",
-        headers: enabledHeaders,
+        headers: resolvedHeaders,
       };
 
-      if (["POST", "PUT", "PATCH", "DELETE"].includes((selectedStep.method || "").toUpperCase())) {
-        opts.body = selectedStep.payload || undefined;
+      if (resolvedBody !== undefined) {
+        opts.body = resolvedBody;
       }
 
-      const res = await fetch(selectedStep.endpoint, opts);
+      const res = await fetch(resolvedUrl, opts);
       const text = await res.text();
       const elapsed = Math.round(performance.now() - startTime);
 
@@ -95,6 +155,9 @@ function RequestEditor() {
           size: new Blob([text]).size,
           body: text,
           headers: resHeaders,
+          resolvedUrl: resolvedUrl,
+          resolvedHeaders: resolvedHeaders,
+          resolvedBody: resolvedBody
         },
       });
     } catch (e) {
@@ -107,6 +170,9 @@ function RequestEditor() {
           size: 0,
           body: `Error: ${String(e.message || e)}`,
           headers: [],
+          resolvedUrl: resolvedUrl,
+          resolvedHeaders: resolvedHeaders,
+          resolvedBody: resolvedBody
         },
       });
     } finally {
@@ -272,8 +338,15 @@ function RequestEditor() {
               />
 
               <Textarea
-                label="Response Body"
-                placeholder="Run the request first, or paste a sample response JSON here."
+                label={
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                    <span>Response Body</span>
+                    <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", fontWeight: "normal", fontStyle: "italic" }}>
+                      Run the flow once to get the response for adding/editing the assertions
+                    </span>
+                  </div>
+                }
+                placeholder="Run the request first if dependency on other requests, or paste a sample response JSON here."
                 rows={6}
                 mono
                 value={responseBodyForGenerator}
@@ -290,8 +363,11 @@ function RequestEditor() {
               <Input
                 type="number"
                 placeholder="e.g. 200"
-                value={selectedStep.assertions?.statusCode || ""}
-                onChange={(e) => update({ assertions: { ...selectedStep.assertions, statusCode: parseInt(e.target.value) || null } })}
+                value={localStatusCode}
+                onChange={(e) => {
+                  setLocalStatusCode(e.target.value);
+                  setHasChanges(true);
+                }}
               />
             </div>
             <div className={styles.assertionRow}>
@@ -300,15 +376,10 @@ function RequestEditor() {
                 placeholder="Enter JSON Schema to validate response body"
                 rows={5}
                 mono
-                value={schemaInput}
-                onChange={(e) => setSchemaInput(e.target.value)}
-                onBlur={() => {
-                  try {
-                    const schema = schemaInput.trim() ? JSON.parse(schemaInput) : null;
-                    update({ assertions: { ...selectedStep.assertions, schema } });
-                  } catch (err) {
-                    // Do nothing on invalid JSON typing
-                  }
+                value={localSchemaInput}
+                onChange={(e) => {
+                  setLocalSchemaInput(e.target.value);
+                  setHasChanges(true);
                 }}
               />
             </div>
@@ -316,20 +387,21 @@ function RequestEditor() {
               <label>Field Assertions</label>
               <p className={styles.tabDescription}>Assert specific values in the response body JSON.</p>
               <KeyValueTable
-                rows={Object.entries(selectedStep.assertions?.body || {}).map(([key, value]) => ({ key, value: JSON.stringify(value), enabled: true }))}
+                key={`${selectedStepId}-assertions`}
+                rows={localBodyRows}
                 onChange={(rows) => {
-                  const body = rows.reduce((acc, row) => {
-                    if (row.key) {
-                      try { acc[row.key] = JSON.parse(row.value); }
-                      catch { acc[row.key] = row.value; }
-                    }
-                    return acc;
-                  }, {});
-                  update({ assertions: { ...selectedStep.assertions, body } });
+                  setLocalBodyRows(rows);
+                  setHasChanges(true);
                 }}
                 keyPlaceholder="JSON Path (e.g. status)"
                 valuePlaceholder="Expected Value (e.g. 'success')"
               />
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "24px" }}>
+              <Button onClick={handleSaveAssertions} disabled={!hasChanges}>
+                Save Assertions
+              </Button>
             </div>
           </div>
         )}

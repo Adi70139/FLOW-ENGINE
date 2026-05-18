@@ -8,11 +8,17 @@ import styles from "./ScheduleModal.module.css";
 function ScheduleModal({ onClose }) {
   const { selectedModule, updateSchedule, deleteSchedule } = useModules();
   
-  const currentSchedule = selectedModule?.schedule || {
-    time: "00:00",
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    active: false
-  };
+  const currentSchedule = selectedModule?.schedule
+    ? {
+        ...selectedModule.schedule,
+        active: true
+      }
+    : {
+        time: "00:00",
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        active: false
+      };
+
 
   const [time, setTime] = useState(currentSchedule.time);
   const [timezone, setTimezone] = useState(currentSchedule.timezone);

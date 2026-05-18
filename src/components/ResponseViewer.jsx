@@ -11,9 +11,11 @@ const RESPONSE_TABS = [
   { id: "request", label: "Request (Resolved)" },
 ];
 
-function ResponseViewer({ response }) {
-  const { selectedFlowId } = useModules();
+function ResponseViewer({ response: propResponse }) {
+  const { selectedStep, selectedFlowId } = useModules();
+  const response = propResponse || selectedStep?.response;
   const [activeTab, setActiveTab] = useState("body");
+
   const [copied, setCopied] = useState(false);
 
   // ... (keep previous functions)

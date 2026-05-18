@@ -244,6 +244,11 @@ export const api = {
       body: JSON.stringify({ responseBody, description }),
     }),
 
+  // ── Trends, History, & Graph ─────────────────────────────────────────────
+  getStepTrends: (flowId) => request(`/api/flows/${flowId}/trends`),
+  getFlowHistory: (flowId) => request(`/api/flows/${flowId}/history`),
+  getDependencyGraph: (flowId) => request(`/api/flows/${flowId}/dependency-graph`),
+
   // ── Import ────────────────────────────────────────────────────────────────
   /** POST /import/postman  multipart: { file, flowName, moduleId } */
   importPostman: (file, flowName, moduleId) => {

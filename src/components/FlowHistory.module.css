@@ -1,0 +1,263 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 16px;
+  overflow-y: auto;
+  height: 100%;
+}
+
+.summaryBanner {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  border-radius: 16px;
+  padding: 20px;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.15);
+}
+
+.summaryTop {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.summaryTitleBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.summaryLabel {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #94a3b8;
+  letter-spacing: 0.5px;
+}
+
+.summaryValue {
+  font-size: 20px;
+  font-weight: 800;
+  color: white;
+}
+
+.streakGrid {
+  border-top: 1px solid #334155;
+  padding-top: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: #cbd5e1;
+}
+
+.sectionTitle {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.runItem {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  transition: all 0.2s var(--ease);
+}
+
+.runItem:hover {
+  border-color: #cbd5e1;
+}
+
+.runHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  cursor: pointer;
+  background: white;
+  transition: background 0.2s;
+  user-select: none;
+}
+
+.runHeader:hover {
+  background: #f8fafc;
+}
+
+.runHeaderActive {
+  background: #f8fafc;
+  border-bottom: 1px solid var(--border);
+}
+
+.runHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.dotPass {
+  background: var(--status-success);
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.4);
+}
+
+.dotFail {
+  background: var(--status-error);
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.4);
+}
+
+.runId {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.runDate {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.runHeaderRight {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.runDuration {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.arrow {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.runDetails {
+  background: #f8fafc;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.stepsTimeline {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+}
+
+.stepRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: white;
+  border: 1px solid var(--border);
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+
+.stepRowLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stepNum {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--text-muted);
+  background: #f1f5f9;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stepName {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.stepRowRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
+  font-size: 11px;
+}
+
+.stepDuration {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.attemptsBadge {
+  background: #fffbeb;
+  color: #d97706;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 10px;
+  border: 1px solid #fef3c7;
+}
+
+.stepError {
+  background: #fef2f2;
+  border-left: 2px solid var(--status-error);
+  color: #991b1b;
+  font-size: 11px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  word-break: break-all;
+}
+
+.loading, .error, .empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 24px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 14px;
+  gap: 12px;
+  height: 100%;
+}
+
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
