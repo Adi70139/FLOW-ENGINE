@@ -103,6 +103,9 @@ function ResponseViewer({ response: propResponse }) {
   const lineCount = formatted.split("\n").length;
   const contentTypeLabel = getContentTypeLabel(response);
 
+  const isNetworkOrExceptionError = response.status === 0 || response.status === null || response.status === undefined;
+  const hasLongError = isNetworkOrExceptionError && response.statusText && response.statusText.length > 30;
+
   return (
     <div className={styles.section}>
       {/* Section heading */}
@@ -114,7 +117,7 @@ function ResponseViewer({ response: propResponse }) {
       <div className={styles.statusBar}>
         <span className={`${styles.statusBadge} ${statusClass}`}>
           <span className={styles.statusDot} />
-          {response.status || "—"} {response.statusText || "Pending"}
+          {response.status || "—"} {hasLongError ? "EXECUTION EXCEPTION" : (response.statusText || "Pending")}
         </span>
 
         <div className={styles.divider} />
@@ -148,6 +151,16 @@ function ResponseViewer({ response: propResponse }) {
           </Button>
         </div>
       </div>
+
+      {hasLongError && (
+        <div className={styles.errorAlert}>
+          <span className={styles.errorAlertIcon}>⚠️</span>
+          <div className={styles.errorAlertContent}>
+            <strong>Execution Exception Details:</strong>
+            <div className={styles.errorAlertText}>{response.statusText}</div>
+          </div>
+        </div>
+      )}
 
       {/* ── Tabs ── */}
       <Tabs

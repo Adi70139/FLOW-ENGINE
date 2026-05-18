@@ -28,6 +28,7 @@
 .statusBar {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
   background: var(--bg-surface);
   backdrop-filter: blur(var(--glass-blur));
@@ -47,6 +48,42 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  max-width: 100%;
+}
+
+.errorAlert {
+  display: flex;
+  gap: 12px;
+  background: #fef2f2;
+  border: 1px solid #fee2e2;
+  border-left: 4px solid var(--status-error);
+  padding: 14px 16px;
+  border-radius: 12px;
+  color: #991b1b;
+  margin-top: 12px;
+  animation: fadeIn 0.3s var(--ease);
+}
+
+.errorAlertIcon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.errorAlertContent {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  min-width: 0;
+}
+
+.errorAlertText {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  color: #b91c1c;
+  word-break: break-all;
+  white-space: pre-wrap;
 }
 
 .statusDot {
