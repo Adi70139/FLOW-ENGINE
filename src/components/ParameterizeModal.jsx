@@ -3,6 +3,68 @@ import Modal from "./ui/modal/Modal";
 import Button from "./ui/button/Button";
 import styles from "./ParameterizeModal.module.css";
 
+function extractAllPaths(obj, prefix = "") {
+  let paths = [];
+
+  if (obj === null || obj === undefined) {
+    return [{
+      key: prefix,
+      value: "null",
+      type: "null",
+      parameterize: false
+    }];
+  }
+
+  if (Array.isArray(obj)) {
+    if (obj.length === 0) {
+      paths.push({
+        key: prefix,
+        value: "[]",
+        type: "array",
+        parameterize: false
+      });
+    } else {
+      const isPrimitiveArray = obj.every(x => typeof x !== "object" || x === null);
+      if (isPrimitiveArray) {
+        paths.push({
+          key: prefix,
+          value: JSON.stringify(obj),
+          type: "array",
+          parameterize: false
+        });
+      } else {
+        obj.forEach((item, index) => {
+          paths.push(...extractAllPaths(item, `${prefix}[${index}]`));
+        });
+      }
+    }
+  } else if (typeof obj === "object") {
+    const keys = Object.keys(obj);
+    if (keys.length === 0) {
+      paths.push({
+        key: prefix,
+        value: "{}",
+        type: "object",
+        parameterize: false
+      });
+    } else {
+      keys.forEach(k => {
+        const fullKey = prefix ? `${prefix}.${k}` : k;
+        paths.push(...extractAllPaths(obj[k], fullKey));
+      });
+    }
+  } else {
+    paths.push({
+      key: prefix,
+      value: String(obj),
+      type: typeof obj,
+      parameterize: false
+    });
+  }
+
+  return paths;
+}
+
 /**
  * Parses a JSON payload string into an array of rows with
  * key, value, type, and parameterize flag.
@@ -10,15 +72,8 @@ import styles from "./ParameterizeModal.module.css";
 function parsePayloadToRows(payload) {
   try {
     const obj = typeof payload === "string" ? JSON.parse(payload) : payload;
-    if (obj && typeof obj === "object" && !Array.isArray(obj)) {
-      return Object.entries(obj).map(([key, val]) => ({
-        key,
-        value: typeof val === "object" ? JSON.stringify(val) : String(val),
-        type: typeof val === "object"
-          ? Array.isArray(val) ? "array" : "object"
-          : typeof val,
-        parameterize: false,
-      }));
+    if (obj && typeof obj === "object") {
+      return extractAllPaths(obj);
     }
   } catch {
     /* not valid JSON */
@@ -55,20 +110,40 @@ function ParameterizeModal({ payload, existingFields = [], onClose, onApply }) {
     );
   }
 
+function setNestedValueByPath(obj, path, value) {
+  const parts = path.split(/\.|\b(?=\[)|\]\.?|\[|\]/g).filter(Boolean);
+  
+  let current = obj;
+  for (let i = 0; i < parts.length - 1; i++) {
+    const part = parts[i];
+    const nextPart = parts[i + 1];
+    const isNextNumber = /^\d+$/.test(nextPart);
+    
+    if (current[part] === undefined || current[part] === null) {
+      current[part] = isNextNumber ? [] : {};
+    }
+    current = current[part];
+  }
+  
+  const lastPart = parts[parts.length - 1];
+  if (current) {
+    current[lastPart] = value;
+  }
+}
+
   function handleApply() {
     try {
-      const obj = typeof payload === "string" ? JSON.parse(payload) : { ...payload };
+      const obj = typeof payload === "string" ? JSON.parse(payload) : JSON.parse(JSON.stringify(payload));
       
       rows.forEach(row => {
         if (row.parameterize && row.key !== "(raw)") {
-          obj[row.key] = "";
+          setNestedValueByPath(obj, row.key, "");
         }
       });
 
       const beautifiedPayload = JSON.stringify(obj, null, 2);
       onApply(rows, beautifiedPayload);
     } catch (e) {
-      // If it's not valid JSON, we just pass the rows back
       onApply(rows, payload);
     }
     onClose();
