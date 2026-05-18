@@ -65,18 +65,77 @@ function extractAllPaths(obj, prefix = "") {
   return paths;
 }
 
+function restorePlaceholders(obj, placeholders) {
+  if (!obj || typeof obj !== "object") return;
+  if (Array.isArray(obj)) {
+    obj.forEach((item, index) => {
+      if (typeof item === "string") {
+        placeholders.forEach(p => {
+          if (item === p.id) obj[index] = p.original;
+          else if (item.includes(p.id)) obj[index] = item.replaceAll(p.id, p.original);
+        });
+      } else {
+        restorePlaceholders(item, placeholders);
+      }
+    });
+  } else {
+    Object.keys(obj).forEach(key => {
+      let val = obj[key];
+      if (typeof val === "string") {
+        placeholders.forEach(p => {
+          if (val === p.id) obj[key] = p.original;
+          else if (val.includes(p.id)) obj[key] = val.replaceAll(p.id, p.original);
+        });
+      } else {
+        restorePlaceholders(val, placeholders);
+      }
+    });
+  }
+}
+
+function dirtyJsonParse(str) {
+  if (typeof str !== "string") return str;
+  let clean = str.trim();
+  if (!clean) return null;
+
+  try {
+    return JSON.parse(clean);
+  } catch (e) {
+    // continue to relaxed parsing
+  }
+
+  try {
+    clean = clean.replace(/\/\/.*$/gm, "");
+    clean = clean.replace(/\/\*[\s\S]*?\*\//g, "");
+
+    const placeholders = [];
+    clean = clean.replace(/\{{1,2}([a-zA-Z0-9_\-\.]+?)\}{1,2}/g, (match) => {
+      const tempId = `__TEMPLATE_PLACEHOLDER_${placeholders.length}__`;
+      placeholders.push({ id: tempId, original: match });
+      return `"${tempId}"`;
+    });
+
+    const obj = new Function(`return (${clean});`)();
+    restorePlaceholders(obj, placeholders);
+    return obj;
+  } catch (err) {
+    console.warn("Failed to parse relaxed JSON:", err);
+    throw err;
+  }
+}
+
 /**
  * Parses a JSON payload string into an array of rows with
  * key, value, type, and parameterize flag.
  */
 function parsePayloadToRows(payload) {
   try {
-    const obj = typeof payload === "string" ? JSON.parse(payload) : payload;
+    const obj = dirtyJsonParse(payload);
     if (obj && typeof obj === "object") {
       return extractAllPaths(obj);
     }
-  } catch {
-    /* not valid JSON */
+  } catch (err) {
+    console.error("Failed parsing relaxed payload:", err);
   }
   // Fallback: treat the whole payload as a single row
   if (payload && payload.trim()) {
@@ -152,7 +211,7 @@ function setNestedValueByPath(obj, path, value) {
   const paramCount = rows.filter((r) => r.parameterize).length;
 
   return (
-    <Modal title="Parameterize Payload" onClose={onClose} size="lg">
+    <Modal title="Parameterize Payload" onClose={onClose} size="xl">
       <div className={styles.modalBody}>
         <p className={styles.description}>
           Toggle the fields you want to parameterize. Parameterized fields can be

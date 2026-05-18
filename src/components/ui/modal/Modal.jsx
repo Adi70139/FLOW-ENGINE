@@ -15,7 +15,7 @@ function Modal({ title, children, onClose, size }) {
     };
   }, [onClose]);
 
-  const sizeClass = size === "lg" ? styles.lg : size === "sm" ? styles.sm : "";
+  const sizeClass = size === "xl" ? styles.xl : size === "lg" ? styles.lg : size === "sm" ? styles.sm : "";
 
   const modalContent = (
     <div className={styles.backdrop} onClick={onClose}>

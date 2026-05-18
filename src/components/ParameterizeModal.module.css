@@ -65,7 +65,7 @@
 .valueCell {
   font-family: var(--font-mono);
   color: var(--text-primary);
-  max-width: 240px;
+  max-width: 500px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

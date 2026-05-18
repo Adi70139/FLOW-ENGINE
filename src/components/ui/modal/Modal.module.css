@@ -31,6 +31,11 @@
   animation: slideUp var(--duration-slow) var(--ease);
 }
 
+.xl {
+  width: 1040px;
+  max-width: 96vw;
+}
+
 .lg {
   width: 720px;
 }
