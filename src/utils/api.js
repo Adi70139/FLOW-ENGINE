@@ -54,6 +54,7 @@ export const mapTestToStep = (test) => ({
   assertions: test.assertions || null,
   retryCount: typeof test.retryCount === "number" ? test.retryCount : (parseInt(test.retryCount) || 0),
   retryDelayMs: typeof test.retryDelayMs === "number" ? test.retryDelayMs : (parseInt(test.retryDelayMs) || 0),
+  initialDelayMs: typeof test.initialDelayMs === "number" ? test.initialDelayMs : (parseInt(test.initialDelayMs) || 0),
 });
 
 /** Backend Step → Frontend Test shape */
@@ -81,6 +82,7 @@ export const mapStepToTest = (step) => ({
   assertions: step.assertionsJson ? JSON.parse(step.assertionsJson) : null,
   retryCount: step.retryCount || 0,
   retryDelayMs: step.retryDelayMs || 0,
+  initialDelayMs: step.initialDelayMs || 0,
 });
 
 

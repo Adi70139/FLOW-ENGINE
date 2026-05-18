@@ -259,6 +259,7 @@ function CreateStepModal({ onClose, flowId, addStep }) {
   const [description, setDescription] = useState("");
   const [retryCount, setRetryCount] = useState(0);
   const [retryDelayMs, setRetryDelayMs] = useState(0);
+  const [initialDelayMs, setInitialDelayMs] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -272,6 +273,10 @@ function CreateStepModal({ onClose, flowId, addStep }) {
       setError("Retry delay must not exceed 20 seconds (20000 ms).");
       return;
     }
+    if (initialDelayMs < 0 || initialDelayMs > 60000) {
+      setError("Initial delay must not exceed 60 seconds (60000 ms).");
+      return;
+    }
     setLoading(true);
     setError("");
     try {
@@ -283,7 +288,8 @@ function CreateStepModal({ onClose, flowId, addStep }) {
         headers: [],
         payload: "",
         retryCount: retryCount,
-        retryDelayMs: retryDelayMs
+        retryDelayMs: retryDelayMs,
+        initialDelayMs: initialDelayMs
       });
       onClose();
     } catch (err) {
@@ -294,7 +300,7 @@ function CreateStepModal({ onClose, flowId, addStep }) {
   }
 
   return (
-    <Modal title="Create Step" onClose={onClose} size="sm">
+    <Modal title="Create Step" onClose={onClose} size="lg">
       <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
         <Input
           label="Step Name"
@@ -336,11 +342,26 @@ function CreateStepModal({ onClose, flowId, addStep }) {
               min="0"
               max="20000"
               step="100"
-              label="Retry Delay (max 20s)"
+              label="Retry Delay (ms)"
               placeholder="e.g. 1000"
               value={retryDelayMs}
               onChange={(e) => {
                 setRetryDelayMs(parseInt(e.target.value) || 0);
+                setError("");
+              }}
+            />
+          </div>
+          <div style={{ flex: 1 }}>
+            <Input
+              type="number"
+              min="0"
+              max="60000"
+              step="100"
+              label="Initial Delay (ms)"
+              placeholder="e.g. 500"
+              value={initialDelayMs}
+              onChange={(e) => {
+                setInitialDelayMs(parseInt(e.target.value) || 0);
                 setError("");
               }}
             />
@@ -367,6 +388,7 @@ function UpdateStepModal({ step, flowId, updateStep, onClose }) {
   const [description, setDescription] = useState(step.description || "");
   const [retryCount, setRetryCount] = useState(step.retryCount || 0);
   const [retryDelayMs, setRetryDelayMs] = useState(step.retryDelayMs || 0);
+  const [initialDelayMs, setInitialDelayMs] = useState(step.initialDelayMs || 0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -380,6 +402,10 @@ function UpdateStepModal({ step, flowId, updateStep, onClose }) {
       setError("Retry delay must not exceed 20 seconds (20000 ms).");
       return;
     }
+    if (initialDelayMs < 0 || initialDelayMs > 60000) {
+      setError("Initial delay must not exceed 60 seconds (60000 ms).");
+      return;
+    }
     setLoading(true);
     setError("");
     try {
@@ -388,6 +414,7 @@ function UpdateStepModal({ step, flowId, updateStep, onClose }) {
         description: description.trim(),
         retryCount: retryCount,
         retryDelayMs: retryDelayMs,
+        initialDelayMs: initialDelayMs
       });
       onClose();
     } catch (err) {
@@ -398,7 +425,7 @@ function UpdateStepModal({ step, flowId, updateStep, onClose }) {
   }
 
   return (
-    <Modal title="Update Step Settings" onClose={onClose} size="sm">
+    <Modal title="Update Step Settings" onClose={onClose} size="lg">
       <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
         <Input
           label="Step Name"
@@ -440,11 +467,26 @@ function UpdateStepModal({ step, flowId, updateStep, onClose }) {
               min="0"
               max="20000"
               step="100"
-              label="Retry Delay (max 20s)"
+              label="Retry Delay (ms)"
               placeholder="e.g. 1000"
               value={retryDelayMs}
               onChange={(e) => {
                 setRetryDelayMs(parseInt(e.target.value) || 0);
+                setError("");
+              }}
+            />
+          </div>
+          <div style={{ flex: 1 }}>
+            <Input
+              type="number"
+              min="0"
+              max="60000"
+              step="100"
+              label="Initial Delay (ms)"
+              placeholder="e.g. 500"
+              value={initialDelayMs}
+              onChange={(e) => {
+                setInitialDelayMs(parseInt(e.target.value) || 0);
                 setError("");
               }}
             />

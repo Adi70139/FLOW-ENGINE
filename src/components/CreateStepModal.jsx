@@ -11,6 +11,7 @@ function CreateStepModal({ onClose }) {
   const [desc, setDesc] = useState("");
   const [retryCount, setRetryCount] = useState(0);
   const [retryDelayMs, setRetryDelayMs] = useState(0);
+  const [initialDelayMs, setInitialDelayMs] = useState(0);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -27,6 +28,10 @@ function CreateStepModal({ onClose }) {
       setError("Retry delay must not exceed 20 seconds (20000 ms).");
       return;
     }
+    if (initialDelayMs < 0 || initialDelayMs > 60000) {
+      setError("Initial delay must not exceed 60 seconds (60000 ms).");
+      return;
+    }
     setLoading(true);
     setError("");
     try {
@@ -34,7 +39,8 @@ function CreateStepModal({ onClose }) {
         name: name.trim(),
         description: desc.trim(),
         retryCount,
-        retryDelayMs
+        retryDelayMs,
+        initialDelayMs
       });
       onClose();
     } catch (err) {
@@ -51,7 +57,7 @@ function CreateStepModal({ onClose }) {
   }
 
   return (
-    <Modal title="New Step" onClose={onClose} size="sm">
+    <Modal title="New Step" onClose={onClose} size="lg">
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-lg)" }}>
         <Input
           label="Step Name"
@@ -96,11 +102,27 @@ function CreateStepModal({ onClose }) {
               min="0"
               max="20000"
               step="100"
-              label="Retry Delay (max 20s)"
+              label="Retry Delay (ms)"
               placeholder="e.g. 1000"
               value={retryDelayMs}
               onChange={(e) => {
                 setRetryDelayMs(parseInt(e.target.value) || 0);
+                setError("");
+              }}
+              disabled={loading}
+            />
+          </div>
+          <div style={{ flex: 1 }}>
+            <Input
+              type="number"
+              min="0"
+              max="60000"
+              step="100"
+              label="Initial Delay (ms)"
+              placeholder="e.g. 500"
+              value={initialDelayMs}
+              onChange={(e) => {
+                setInitialDelayMs(parseInt(e.target.value) || 0);
                 setError("");
               }}
               disabled={loading}
