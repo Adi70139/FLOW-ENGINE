@@ -208,21 +208,30 @@ function ResponseViewer({ response: propResponse }) {
       {activeTab === "request" && (
         <div className={styles.requestPanel}>
           <div className={styles.requestInfo}>
-            <div className={styles.requestMeta}>
-              <strong>URL:</strong> <code>{response.resolvedUrl}</code>
-            </div>
+            {response.resolvedUrl && (
+              <div className={styles.requestMeta}>
+                <strong>Request URL</strong>
+                <code>{response.resolvedUrl}</code>
+              </div>
+            )}
             {response.resolvedHeaders && (
               <div className={styles.requestHeaders}>
-                <strong>Headers:</strong>
-                <pre>{JSON.stringify(response.resolvedHeaders, null, 2)}</pre>
+                <strong>Request Headers</strong>
+                <pre dangerouslySetInnerHTML={{ 
+                  __html: syntaxHighlight(JSON.stringify(response.resolvedHeaders, null, 2)) 
+                }} />
               </div>
             )}
             {response.resolvedBody && (
               <div className={styles.requestBody}>
-                <strong>Body:</strong>
-                <div className={styles.bodyScroll}>
-                  <pre dangerouslySetInnerHTML={{ __html: syntaxHighlight(formatJson(response.resolvedBody)) }} />
-                </div>
+                <strong>Request Body</strong>
+                <pre dangerouslySetInnerHTML={{ 
+                  __html: syntaxHighlight(
+                    typeof response.resolvedBody === "string" 
+                      ? formatJson(response.resolvedBody) 
+                      : JSON.stringify(response.resolvedBody, null, 2)
+                  ) 
+                }} />
               </div>
             )}
             {!response.resolvedUrl && (
