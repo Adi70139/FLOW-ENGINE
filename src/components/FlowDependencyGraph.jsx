@@ -131,10 +131,10 @@ function FlowDependencyGraph({ flowId }) {
 
   // Lay out nodes vertically
   const nodeWidth = 220;
-  const nodeHeight = 70;
+  const nodeHeight = 82;
   const centerX = 150;
   const startY = 50;
-  const spacingY = 140;
+  const spacingY = 160;
 
   const nodePositions = {};
   nodes.forEach((node, index) => {
@@ -323,28 +323,53 @@ function FlowDependencyGraph({ flowId }) {
                   </text>
 
                   {/* Input / Output metadata details */}
-                  <g transform="translate(0, 24)">
-                    {/* Inputs */}
-                    {node.usedPlaceholders && node.usedPlaceholders.length > 0 && (
-                      <g>
-                        <text fill="var(--text-muted)" fontSize="9px" fontWeight="600">IN:</text>
-                        <text fill="#3b82f6" fontSize="9px" fontWeight="700" x={20}>
-                          {node.usedPlaceholders.slice(0, 2).join(", ")}
-                          {node.usedPlaceholders.length > 2 && "..."}
-                        </text>
+                  {(() => {
+                    const hasIn = node.usedPlaceholders && node.usedPlaceholders.length > 0;
+                    const hasOut = node.producedKeys && node.producedKeys.length > 0;
+
+                    let inY = 24;
+                    let outY = 24;
+
+                    if (hasIn && hasOut) {
+                      inY = 18;
+                      outY = 32;
+                    }
+
+                    const formatList = (list) => {
+                      if (!list || list.length === 0) return "";
+                      const sliced = list.slice(0, 2);
+                      const joined = sliced.join(", ");
+                      const suffix = list.length > 2 ? "..." : "";
+                      const full = joined + suffix;
+                      if (full.length > 24) {
+                        return full.slice(0, 22) + "...";
+                      }
+                      return full;
+                    };
+
+                    return (
+                      <g transform="translate(0, 24)">
+                        {/* Inputs */}
+                        {hasIn && (
+                          <g transform={`translate(0, ${inY})`}>
+                            <text fill="var(--text-muted)" fontSize="9px" fontWeight="600">IN:</text>
+                            <text fill="#3b82f6" fontSize="9px" fontWeight="700" x={20}>
+                              {formatList(node.usedPlaceholders)}
+                            </text>
+                          </g>
+                        )}
+                        {/* Outputs */}
+                        {hasOut && (
+                          <g transform={`translate(0, ${outY})`}>
+                            <text fill="var(--text-muted)" fontSize="9px" fontWeight="600">OUT:</text>
+                            <text fill="var(--status-success)" fontSize="9px" fontWeight="700" x={26}>
+                              {formatList(node.producedKeys)}
+                            </text>
+                          </g>
+                        )}
                       </g>
-                    )}
-                    {/* Outputs */}
-                    {node.producedKeys && node.producedKeys.length > 0 && (
-                      <g transform={`translate(${node.usedPlaceholders?.length ? 100 : 0}, 0)`}>
-                        <text fill="var(--text-muted)" fontSize="9px" fontWeight="600">OUT:</text>
-                        <text fill="var(--status-success)" fontSize="9px" fontWeight="700" x={26}>
-                          {node.producedKeys.slice(0, 2).join(", ")}
-                          {node.producedKeys.length > 2 && "..."}
-                        </text>
-                      </g>
-                    )}
-                  </g>
+                    );
+                  })()}
                 </g>
               </g>
             );
