@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
 import { api } from "../utils/api";
+import { useModules } from "../context/CollectionContext";
 import styles from "./FlowDependencyGraph.module.css";
 
 function FlowDependencyGraph({ flowId }) {
+  const { selectedFlow } = useModules();
   const [graphData, setGraphData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -43,7 +45,89 @@ function FlowDependencyGraph({ flowId }) {
     return <div className={styles.empty}>No dependency data found. Define variable extractions and placeholders in your steps!</div>;
   }
 
-  const { nodes = [], edges = [] } = graphData;
+  // Build a map of step assertions to find produced keys statically
+  const stepAssertions = {};
+  if (selectedFlow && selectedFlow.tests) {
+    selectedFlow.tests.forEach(test => {
+      const keys = new Set();
+      // From body assertions
+      if (test.assertions?.body) {
+        Object.keys(test.assertions.body).forEach(k => keys.add(k));
+      }
+      // From schema assertions
+      if (test.assertions?.schema) {
+        Object.keys(test.assertions.schema).forEach(k => keys.add(k));
+      }
+      stepAssertions[test.id] = Array.from(keys);
+    });
+  }
+
+  // Map nodes to ensure they display OUT keys statically if backend has no cached run details
+  const nodesWithFallback = (graphData.nodes || []).map(node => {
+    const asserted = stepAssertions[node.stepId] || [];
+    const produced = node.producedKeys && node.producedKeys.length > 0
+      ? node.producedKeys
+      : asserted;
+    return {
+      ...node,
+      producedKeys: produced
+    };
+  });
+
+  const nodes = nodesWithFallback;
+
+  // Fallback edge generation if edges is empty
+  let finalEdges = [...(graphData.edges || [])];
+  if (finalEdges.length === 0 && nodes.length > 0) {
+    nodes.forEach((nodeB) => {
+      const placeholders = nodeB.usedPlaceholders || [];
+      placeholders.forEach(placeholder => {
+        if (["baseUrl", "token", "apiKey", "env"].includes(placeholder)) return;
+
+        let foundProducer = null;
+        for (let i = nodes.length - 1; i >= 0; i--) {
+          const nodeA = nodes[i];
+          if (nodeA.stepOrder < nodeB.stepOrder) {
+            const producedKeys = nodeA.producedKeys || [];
+            const produces = producedKeys.some(k => 
+              k === placeholder || 
+              k.toLowerCase() === placeholder.toLowerCase() ||
+              k.endsWith("." + placeholder)
+            );
+            if (produces) {
+              foundProducer = nodeA;
+              break;
+            }
+          }
+        }
+
+        // If no explicit producer was found, fall back to adjacent step
+        if (!foundProducer && nodeB.stepOrder > 1) {
+          foundProducer = nodes.find(n => n.stepOrder === nodeB.stepOrder - 1);
+        }
+
+        if (foundProducer) {
+          const exists = finalEdges.some(e => e.fromStepId === foundProducer.stepId && e.toStepId === nodeB.stepId);
+          if (!exists) {
+            finalEdges.push({
+              fromStepId: foundProducer.stepId,
+              toStepId: nodeB.stepId,
+              fromStepName: foundProducer.stepName,
+              toStepName: nodeB.stepName,
+              keys: [placeholder]
+            });
+          } else {
+            const edge = finalEdges.find(e => e.fromStepId === foundProducer.stepId && e.toStepId === nodeB.stepId);
+            if (edge && !edge.keys.includes(placeholder)) {
+              edge.keys.push(placeholder);
+            }
+          }
+        }
+      });
+    });
+  }
+
+  const edges = finalEdges;
 
   // Lay out nodes vertically
   const nodeWidth = 220;
