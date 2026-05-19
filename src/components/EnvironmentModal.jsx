@@ -21,6 +21,8 @@ function EnvironmentModal({ onClose }) {
   const [envChanges, setEnvChanges] = useState({}); // { [envId]: variables[] }
   const [isSaving, setIsSaving] = useState(false);
 
+  const isCreateDisabled = !newEnvName.trim() || !newEnvVariables.some(r => r.key && r.key.trim() !== "" && r.value && r.value.trim() !== "");
+
   // Memoize variables to prevent KeyValueTable from jittering on every parent render
   const currentEditVariables = useMemo(() => {
     return envChanges[activeEnvId] || (activeEnv ? Object.entries(activeEnv.variables || {}).map(([key, value]) => ({ key, value, enabled: true })) : []);
@@ -136,25 +138,15 @@ function EnvironmentModal({ onClose }) {
                 </button>
               </div>
             ))}
-            {isCreating && (
-              <div className={styles.createEnv}>
+             {isCreating && (
+              <div className={styles.createEnv} style={{ display: "flex", flexDirection: "column", gap: "8px", padding: "8px 12px", background: "rgba(255, 255, 255, 0.02)", borderRadius: "8px", border: "1px solid var(--border)", marginTop: "8px" }}>
                 <Input
                   value={newEnvName}
                   onChange={(e) => setNewEnvName(e.target.value)}
                   placeholder="e.g. STAGING"
                   autoFocus
-                  onKeyDown={(e) => e.key === 'Enter' && handleAddEnv()}
                 />
-                <div className={styles.createActions}>
-                  <KeyValueTable
-                    rows={newEnvVariables}
-                    onChange={setNewEnvVariables}
-                    keyPlaceholder="Key"
-                    valuePlaceholder="Value"
-                  />
-                </div>
-                <div className={styles.createActions}>
-                  <Button size="small" onClick={handleAddEnv}>Save</Button>
+                 <div style={{ display: "flex", justifyContent: "flex-end", width: "100%" }}>
                   <Button size="small" variant="ghost" onClick={() => setIsCreating(false)}>Cancel</Button>
                 </div>
               </div>
@@ -163,8 +155,32 @@ function EnvironmentModal({ onClose }) {
         </aside>
 
         <main className={styles.main}>
-          {activeEnv ? (
-            <div className={styles.envEditor}>
+          {isCreating ? (
+            <div className={styles.mainContent}>
+              <div className={styles.envHeader}>
+                <div className={styles.titleRow}>
+                  <h2>{newEnvName.trim() || "New Environment"}</h2>
+                  <Badge variant="warning">Draft</Badge>
+                </div>
+                <p>Configure variables for your new environment. They will be saved when you create the environment.</p>
+              </div>
+              <div className={styles.tableWrapper}>
+                <KeyValueTable
+                  key="new-env-variables"
+                  rows={newEnvVariables}
+                  onChange={setNewEnvVariables}
+                  keyPlaceholder="Variable Name"
+                  valuePlaceholder="Value"
+                />
+                <div className={styles.mainActions}>
+                  <Button onClick={handleAddEnv} disabled={isCreateDisabled}>
+                    Create Environment
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : activeEnv ? (
+            <div className={styles.mainContent}>
               <div className={styles.envHeader}>
                 <div className={styles.titleRow}>
                   <h2>{activeEnv.name}</h2>
@@ -203,15 +219,29 @@ function EnvironmentModal({ onClose }) {
 
 // Internal Badge for consistency
 function Badge({ children, variant = "secondary" }) {
+  let background = "rgba(255, 255, 255, 0.1)";
+  let color = "var(--text-muted)";
+  let border = "1px solid rgba(255, 255, 255, 0.1)";
+
+  if (variant === "success") {
+    background = "rgba(16, 185, 129, 0.1)";
+    color = "var(--status-success)";
+    border = "1px solid rgba(16, 185, 129, 0.2)";
+  } else if (variant === "warning") {
+    background = "rgba(245, 158, 11, 0.1)";
+    color = "rgba(245, 158, 11, 1)";
+    border = "1px solid rgba(245, 158, 11, 0.2)";
+  }
+
   const badgeStyle = {
     padding: "2px 8px",
     borderRadius: "4px",
     fontSize: "10px",
     fontWeight: "700",
     textTransform: "uppercase",
-    background: variant === "success" ? "rgba(16, 185, 129, 0.1)" : "rgba(255, 255, 255, 0.1)",
-    color: variant === "success" ? "var(--accent)" : "var(--text-muted)",
-    border: `1px solid ${variant === "success" ? "rgba(16, 185, 129, 0.2)" : "rgba(255, 255, 255, 0.1)"}`,
+    background,
+    color,
+    border,
   };
   return <span style={badgeStyle}>{children}</span>;
 }
