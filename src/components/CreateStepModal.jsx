@@ -12,6 +12,10 @@ function CreateStepModal({ onClose }) {
   const [retryCount, setRetryCount] = useState(0);
   const [retryDelayMs, setRetryDelayMs] = useState(0);
   const [initialDelayMs, setInitialDelayMs] = useState(0);
+  const [pollUntilSuccess, setPollUntilSuccess] = useState(false);
+  const [pollIntervalMs, setPollIntervalMs] = useState(1000);
+  const [pollMaxAttempts, setPollMaxAttempts] = useState(5);
+  const [pollExpectedStatus, setPollExpectedStatus] = useState(200);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -28,9 +32,23 @@ function CreateStepModal({ onClose }) {
       setError("Retry delay must not exceed 20 seconds (20000 ms).");
       return;
     }
-    if (initialDelayMs < 0 || initialDelayMs > 60000) {
-      setError("Initial delay must not exceed 60 seconds (60000 ms).");
+    if (initialDelayMs < 0 || initialDelayMs > 300000) {
+      setError("Initial delay must not exceed 5 minutes (300000 ms).");
       return;
+    }
+    if (pollUntilSuccess) {
+      if (pollIntervalMs <= 0) {
+        setError("Poll interval must be greater than 0 ms.");
+        return;
+      }
+      if (pollMaxAttempts <= 0) {
+        setError("Max poll attempts must be greater than 0.");
+        return;
+      }
+      if (pollExpectedStatus < 100 || pollExpectedStatus > 599) {
+        setError("Expected status code must be between 100 and 599.");
+        return;
+      }
     }
     setLoading(true);
     setError("");
@@ -40,7 +58,11 @@ function CreateStepModal({ onClose }) {
         description: desc.trim(),
         retryCount,
         retryDelayMs,
-        initialDelayMs
+        initialDelayMs,
+        pollUntilSuccess,
+        pollIntervalMs,
+        pollMaxAttempts,
+        pollExpectedStatus,
       });
       onClose();
     } catch (err) {
@@ -116,7 +138,7 @@ function CreateStepModal({ onClose }) {
             <Input
               type="number"
               min="0"
-              max="60000"
+              max="300000"
               step="100"
               label="Initial Delay (ms)"
               placeholder="e.g. 500"
@@ -129,6 +151,69 @@ function CreateStepModal({ onClose }) {
             />
           </div>
         </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "10px" }}>
+          <input
+            type="checkbox"
+            id="createModalPollUntilSuccess"
+            checked={pollUntilSuccess}
+            onChange={(e) => setPollUntilSuccess(e.target.checked)}
+            style={{ width: "16px", height: "16px", cursor: "pointer" }}
+            disabled={loading}
+          />
+          <label htmlFor="createModalPollUntilSuccess" style={{ fontWeight: "600", fontSize: "14px", color: "var(--text-primary)", cursor: "pointer" }}>
+            Poll Until Success (Repeat request until expected status is met)
+          </label>
+        </div>
+
+        {pollUntilSuccess && (
+          <div style={{ display: "flex", gap: "16px" }}>
+            <div style={{ flex: 1 }}>
+              <Input
+                type="number"
+                min="1"
+                label="Poll Interval (ms)"
+                placeholder="e.g. 1000"
+                value={pollIntervalMs}
+                onChange={(e) => {
+                  setPollIntervalMs(parseInt(e.target.value) || 0);
+                  setError("");
+                }}
+                disabled={loading}
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <Input
+                type="number"
+                min="1"
+                label="Max Poll Attempts"
+                placeholder="e.g. 5"
+                value={pollMaxAttempts}
+                onChange={(e) => {
+                  setPollMaxAttempts(parseInt(e.target.value) || 0);
+                  setError("");
+                }}
+                disabled={loading}
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <Input
+                type="number"
+                min="100"
+                max="599"
+                label="Expected Status"
+                placeholder="e.g. 200"
+                value={pollExpectedStatus}
+                onChange={(e) => {
+                  setPollExpectedStatus(parseInt(e.target.value) || 0);
+                  setError("");
+                }}
+                disabled={loading}
+              />
+            </div>
+          </div>
+        )}
+
         {error && (
           <span style={{ color: "var(--status-error)", fontSize: "var(--text-sm)" }}>
             {error}

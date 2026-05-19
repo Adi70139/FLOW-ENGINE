@@ -10,6 +10,17 @@ import styles from "./Report.module.css";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
+async function openPdfInTab(url) {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
+    window.open(blobUrl, "_blank");
+  } catch {
+    window.open(url, "_blank");
+  }
+}
+
 function statusVariant(status = "") {
   const s = String(status).toUpperCase();
   if (s === "PASSED" || s === "SUCCESS" || s === "COMPLETED") return "success";
@@ -389,7 +400,7 @@ function Report() {
               <Button
                 variant="primary"
                 size="small"
-                onClick={() => window.open(downloadUrl, "_blank")}
+                onClick={() => openPdfInTab(downloadUrl)}
                 icon="📥"
               >
                 Export PDF

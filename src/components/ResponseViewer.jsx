@@ -11,6 +11,17 @@ const RESPONSE_TABS = [
   { id: "request", label: "Request (Resolved)" },
 ];
 
+async function openPdfInTab(url) {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
+    window.open(blobUrl, "_blank");
+  } catch {
+    window.open(url, "_blank");
+  }
+}
+
 function ResponseViewer({ response: propResponse }) {
   const { selectedStep, selectedFlowId } = useModules();
   const response = propResponse || selectedStep?.response;
@@ -141,10 +152,10 @@ function ResponseViewer({ response: propResponse }) {
           <Button 
             variant="secondary" 
             size="small" 
-            onClick={() => window.open(api.getFlowReport(selectedFlowId), "_blank")}
-            title="Download PDF execution report"
+            onClick={() => openPdfInTab(api.getFlowReport(selectedFlowId))}
+            title="Open PDF execution report in new tab"
           >
-            PDF Report
+            📄 PDF Report
           </Button>
           <Button variant="ghost" size="small" onClick={handleCopy}>
             {copied ? "✓ Copied" : "📋 Copy"}

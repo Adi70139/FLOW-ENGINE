@@ -731,6 +731,18 @@ export function useModules() {
     }
   };
 
+  const duplicateStep = async (flowId, stepId, name) => {
+    try {
+      const newStep = await api.duplicateStep(flowId, stepId, name);
+      const step = mapStepToTest(newStep);
+      dispatch({ type: "ADD_STEP", flowId, step });
+      return step;
+    } catch (error) {
+      console.error("Failed to duplicate step:", error);
+      throw error;
+    }
+  };
+
   const fetchSteps = async (flowId) => {
     if (!flowId) return;
     try {
@@ -792,6 +804,7 @@ export function useModules() {
     addStep,
     updateStep,
     deleteStep,
+    duplicateStep,
     fetchSteps,
     importFlow,
   };

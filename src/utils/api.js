@@ -55,6 +55,10 @@ export const mapTestToStep = (test) => ({
   retryCount: typeof test.retryCount === "number" ? test.retryCount : (parseInt(test.retryCount) || 0),
   retryDelayMs: typeof test.retryDelayMs === "number" ? test.retryDelayMs : (parseInt(test.retryDelayMs) || 0),
   initialDelayMs: typeof test.initialDelayMs === "number" ? test.initialDelayMs : (parseInt(test.initialDelayMs) || 0),
+  pollUntilSuccess: !!test.pollUntilSuccess,
+  pollIntervalMs: typeof test.pollIntervalMs === "number" ? test.pollIntervalMs : (parseInt(test.pollIntervalMs) || 0),
+  pollMaxAttempts: typeof test.pollMaxAttempts === "number" ? test.pollMaxAttempts : (parseInt(test.pollMaxAttempts) || 0),
+  pollExpectedStatus: typeof test.pollExpectedStatus === "number" ? test.pollExpectedStatus : (parseInt(test.pollExpectedStatus) || 0),
 });
 
 /** Backend Step → Frontend Test shape */
@@ -83,6 +87,10 @@ export const mapStepToTest = (step) => ({
   retryCount: step.retryCount || 0,
   retryDelayMs: step.retryDelayMs || 0,
   initialDelayMs: step.initialDelayMs || 0,
+  pollUntilSuccess: !!step.pollUntilSuccess,
+  pollIntervalMs: step.pollIntervalMs || 0,
+  pollMaxAttempts: step.pollMaxAttempts || 0,
+  pollExpectedStatus: step.pollExpectedStatus || 0,
 });
 
 
@@ -151,6 +159,11 @@ export const api = {
     }),
   deleteStep: (flowId, stepId) =>
     request(`/flows/${flowId}/steps/${stepId}`, { method: "DELETE" }),
+  duplicateStep: (flowId, stepId, name) =>
+    request(`/flows/${flowId}/steps/${stepId}/duplicate`, {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    }),
 
   // ── Environments ──────────────────────────────────────────────────────────
   getModuleEnvironments: (moduleId) =>

@@ -327,47 +327,39 @@ function FlowDependencyGraph({ flowId }) {
                     const hasIn = node.usedPlaceholders && node.usedPlaceholders.length > 0;
                     const hasOut = node.producedKeys && node.producedKeys.length > 0;
 
-                    let inY = 24;
-                    let outY = 24;
-
-                    if (hasIn && hasOut) {
-                      inY = 18;
-                      outY = 32;
-                    }
-
                     const formatList = (list) => {
                       if (!list || list.length === 0) return "";
-                      const sliced = list.slice(0, 2);
-                      const joined = sliced.join(", ");
-                      const suffix = list.length > 2 ? "..." : "";
-                      const full = joined + suffix;
-                      if (full.length > 24) {
-                        return full.slice(0, 22) + "...";
-                      }
-                      return full;
+                      const preview = list.slice(0, 3).join(", ");
+                      return list.length > 3 ? `${preview} +${list.length - 3}` : preview;
                     };
 
                     return (
-                      <g transform="translate(0, 24)">
-                        {/* Inputs */}
-                        {hasIn && (
-                          <g transform={`translate(0, ${inY})`}>
-                            <text fill="var(--text-muted)" fontSize="9px" fontWeight="600">IN:</text>
-                            <text fill="#3b82f6" fontSize="9px" fontWeight="700" x={20}>
-                              {formatList(node.usedPlaceholders)}
-                            </text>
-                          </g>
-                        )}
-                        {/* Outputs */}
-                        {hasOut && (
-                          <g transform={`translate(0, ${outY})`}>
-                            <text fill="var(--text-muted)" fontSize="9px" fontWeight="600">OUT:</text>
-                            <text fill="var(--status-success)" fontSize="9px" fontWeight="700" x={26}>
-                              {formatList(node.producedKeys)}
-                            </text>
-                          </g>
-                        )}
-                      </g>
+                      <foreignObject x={0} y={18} width={nodeWidth - 28} height={58}>
+                        <div xmlns="http://www.w3.org/1999/xhtml" style={{ fontFamily: "inherit", display: "flex", flexDirection: "column", gap: "4px" }}>
+                          {hasIn && (
+                            <div style={{ display: "flex", alignItems: "center", gap: "4px", overflow: "hidden" }}>
+                              <span style={{ fontSize: "9px", fontWeight: "800", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", flexShrink: 0 }}>IN</span>
+                              <span style={{ fontSize: "9px", fontWeight: "700", color: "#3b82f6", background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.2)", borderRadius: "4px", padding: "1px 5px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "160px" }}>
+                                {formatList(node.usedPlaceholders)}
+                              </span>
+                              {node.usedPlaceholders.length > 3 && (
+                                <span style={{ fontSize: "8px", color: "#94a3b8", flexShrink: 0 }}>({node.usedPlaceholders.length} total)</span>
+                              )}
+                            </div>
+                          )}
+                          {hasOut && (
+                            <div style={{ display: "flex", alignItems: "center", gap: "4px", overflow: "hidden" }}>
+                              <span style={{ fontSize: "9px", fontWeight: "800", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", flexShrink: 0 }}>OUT</span>
+                              <span style={{ fontSize: "9px", fontWeight: "700", color: "#10b981", background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: "4px", padding: "1px 5px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "155px" }}>
+                                {formatList(node.producedKeys)}
+                              </span>
+                              {node.producedKeys.length > 3 && (
+                                <span style={{ fontSize: "8px", color: "#94a3b8", flexShrink: 0 }}>({node.producedKeys.length} total)</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </foreignObject>
                     );
                   })()}
                 </g>

@@ -8,7 +8,7 @@ import Input from "./ui/input/Input";
 import Tabs from "./ui/tabs/Tabs";
 import Textarea from "./ui/textarea/Textarea";
 import { parseCurl } from "../utils/parseCurl";
-import { IconStep, IconDelete, IconPlus, IconFlow, IconEdit } from "./ui/icons/Icons";
+import { IconStep, IconDelete, IconPlus, IconFlow, IconEdit, IconDuplicate } from "./ui/icons/Icons";
 import FlowTrends from "./FlowTrends";
 import FlowHistory from "./FlowHistory";
 import FlowDependencyGraph from "./FlowDependencyGraph";
@@ -21,6 +21,7 @@ function TestList({ onAddTest }) {
     selectedStepId, 
     dispatch, 
     deleteStep, 
+    duplicateStep,
     fetchSteps,
     updateStep,
     addStep
@@ -91,6 +92,17 @@ function TestList({ onAddTest }) {
     e.stopPropagation();
     if (confirm("Delete this step?")) {
       deleteStep(selectedFlowId, stepId);
+    }
+  }
+
+  async function handleDuplicate(e, step) {
+    e.stopPropagation();
+    const name = prompt("Name for duplicated step:", `${step.name} (copy)`);
+    if (!name || !name.trim()) return;
+    try {
+      await duplicateStep(selectedFlowId, step.id, name.trim());
+    } catch (err) {
+      alert("Failed to duplicate step: " + err.message);
     }
   }
 
@@ -195,6 +207,15 @@ function TestList({ onAddTest }) {
                     </IconButton>
                     <IconButton
                       size="small"
+                      variant="ghost"
+                      title="Duplicate step"
+                      onClick={(e) => handleDuplicate(e, t)}
+                      style={{ marginRight: "4px" }}
+                    >
+                      <IconDuplicate size={14} />
+                    </IconButton>
+                    <IconButton
+                      size="small"
                       variant="danger"
                       title="Delete test"
                       onClick={(e) => handleDelete(e, t.id)}
@@ -260,6 +281,10 @@ function CreateStepModal({ onClose, flowId, addStep }) {
   const [retryCount, setRetryCount] = useState(0);
   const [retryDelayMs, setRetryDelayMs] = useState(0);
   const [initialDelayMs, setInitialDelayMs] = useState(0);
+  const [pollUntilSuccess, setPollUntilSuccess] = useState(false);
+  const [pollIntervalMs, setPollIntervalMs] = useState(1000);
+  const [pollMaxAttempts, setPollMaxAttempts] = useState(5);
+  const [pollExpectedStatus, setPollExpectedStatus] = useState(200);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -273,9 +298,23 @@ function CreateStepModal({ onClose, flowId, addStep }) {
       setError("Retry delay must not exceed 20 seconds (20000 ms).");
       return;
     }
-    if (initialDelayMs < 0 || initialDelayMs > 60000) {
-      setError("Initial delay must not exceed 60 seconds (60000 ms).");
+    if (initialDelayMs < 0 || initialDelayMs > 300000) {
+      setError("Initial delay must not exceed 5 minutes (300000 ms).");
       return;
+    }
+    if (pollUntilSuccess) {
+      if (pollIntervalMs <= 0) {
+        setError("Poll interval must be greater than 0 ms.");
+        return;
+      }
+      if (pollMaxAttempts <= 0) {
+        setError("Max poll attempts must be greater than 0.");
+        return;
+      }
+      if (pollExpectedStatus < 100 || pollExpectedStatus > 599) {
+        setError("Expected status code must be between 100 and 599.");
+        return;
+      }
     }
     setLoading(true);
     setError("");
@@ -289,7 +328,11 @@ function CreateStepModal({ onClose, flowId, addStep }) {
         payload: "",
         retryCount: retryCount,
         retryDelayMs: retryDelayMs,
-        initialDelayMs: initialDelayMs
+        initialDelayMs: initialDelayMs,
+        pollUntilSuccess: pollUntilSuccess,
+        pollIntervalMs: pollIntervalMs,
+        pollMaxAttempts: pollMaxAttempts,
+        pollExpectedStatus: pollExpectedStatus,
       });
       onClose();
     } catch (err) {
@@ -355,7 +398,7 @@ function CreateStepModal({ onClose, flowId, addStep }) {
             <Input
               type="number"
               min="0"
-              max="60000"
+              max="300000"
               step="100"
               label="Initial Delay (ms)"
               placeholder="e.g. 500"
@@ -367,6 +410,64 @@ function CreateStepModal({ onClose, flowId, addStep }) {
             />
           </div>
         </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "10px" }}>
+          <input
+            type="checkbox"
+            id="pollUntilSuccess"
+            checked={pollUntilSuccess}
+            onChange={(e) => setPollUntilSuccess(e.target.checked)}
+            style={{ width: "16px", height: "16px", cursor: "pointer" }}
+          />
+          <label htmlFor="pollUntilSuccess" style={{ fontWeight: "600", fontSize: "14px", color: "var(--text-primary)", cursor: "pointer" }}>
+            Poll Until Success (Repeat request until expected status is met)
+          </label>
+        </div>
+
+        {pollUntilSuccess && (
+          <div style={{ display: "flex", gap: "16px" }}>
+            <div style={{ flex: 1 }}>
+              <Input
+                type="number"
+                min="1"
+                label="Poll Interval (ms)"
+                placeholder="e.g. 1000"
+                value={pollIntervalMs}
+                onChange={(e) => {
+                  setPollIntervalMs(parseInt(e.target.value) || 0);
+                  setError("");
+                }}
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <Input
+                type="number"
+                min="1"
+                label="Max Poll Attempts"
+                placeholder="e.g. 5"
+                value={pollMaxAttempts}
+                onChange={(e) => {
+                  setPollMaxAttempts(parseInt(e.target.value) || 0);
+                  setError("");
+                }}
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <Input
+                type="number"
+                min="100"
+                max="599"
+                label="Expected Status"
+                placeholder="e.g. 200"
+                value={pollExpectedStatus}
+                onChange={(e) => {
+                  setPollExpectedStatus(parseInt(e.target.value) || 0);
+                  setError("");
+                }}
+              />
+            </div>
+          </div>
+        )}
 
         {error && (
           <span style={{ color: "var(--status-error)", fontSize: "var(--text-sm)" }}>
@@ -389,6 +490,10 @@ function UpdateStepModal({ step, flowId, updateStep, onClose }) {
   const [retryCount, setRetryCount] = useState(step.retryCount || 0);
   const [retryDelayMs, setRetryDelayMs] = useState(step.retryDelayMs || 0);
   const [initialDelayMs, setInitialDelayMs] = useState(step.initialDelayMs || 0);
+  const [pollUntilSuccess, setPollUntilSuccess] = useState(step.pollUntilSuccess || false);
+  const [pollIntervalMs, setPollIntervalMs] = useState(step.pollIntervalMs || 1000);
+  const [pollMaxAttempts, setPollMaxAttempts] = useState(step.pollMaxAttempts || 5);
+  const [pollExpectedStatus, setPollExpectedStatus] = useState(step.pollExpectedStatus || 200);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -402,9 +507,23 @@ function UpdateStepModal({ step, flowId, updateStep, onClose }) {
       setError("Retry delay must not exceed 20 seconds (20000 ms).");
       return;
     }
-    if (initialDelayMs < 0 || initialDelayMs > 60000) {
-      setError("Initial delay must not exceed 60 seconds (60000 ms).");
+    if (initialDelayMs < 0 || initialDelayMs > 300000) {
+      setError("Initial delay must not exceed 5 minutes (300000 ms).");
       return;
+    }
+    if (pollUntilSuccess) {
+      if (pollIntervalMs <= 0) {
+        setError("Poll interval must be greater than 0 ms.");
+        return;
+      }
+      if (pollMaxAttempts <= 0) {
+        setError("Max poll attempts must be greater than 0.");
+        return;
+      }
+      if (pollExpectedStatus < 100 || pollExpectedStatus > 599) {
+        setError("Expected status code must be between 100 and 599.");
+        return;
+      }
     }
     setLoading(true);
     setError("");
@@ -414,7 +533,11 @@ function UpdateStepModal({ step, flowId, updateStep, onClose }) {
         description: description.trim(),
         retryCount: retryCount,
         retryDelayMs: retryDelayMs,
-        initialDelayMs: initialDelayMs
+        initialDelayMs: initialDelayMs,
+        pollUntilSuccess: pollUntilSuccess,
+        pollIntervalMs: pollIntervalMs,
+        pollMaxAttempts: pollMaxAttempts,
+        pollExpectedStatus: pollExpectedStatus,
       });
       onClose();
     } catch (err) {
@@ -480,7 +603,7 @@ function UpdateStepModal({ step, flowId, updateStep, onClose }) {
             <Input
               type="number"
               min="0"
-              max="60000"
+              max="300000"
               step="100"
               label="Initial Delay (ms)"
               placeholder="e.g. 500"
@@ -492,6 +615,64 @@ function UpdateStepModal({ step, flowId, updateStep, onClose }) {
             />
           </div>
         </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "10px" }}>
+          <input
+            type="checkbox"
+            id="updatePollUntilSuccess"
+            checked={pollUntilSuccess}
+            onChange={(e) => setPollUntilSuccess(e.target.checked)}
+            style={{ width: "16px", height: "16px", cursor: "pointer" }}
+          />
+          <label htmlFor="updatePollUntilSuccess" style={{ fontWeight: "600", fontSize: "14px", color: "var(--text-primary)", cursor: "pointer" }}>
+            Poll Until Success (Repeat request until expected status is met)
+          </label>
+        </div>
+
+        {pollUntilSuccess && (
+          <div style={{ display: "flex", gap: "16px" }}>
+            <div style={{ flex: 1 }}>
+              <Input
+                type="number"
+                min="1"
+                label="Poll Interval (ms)"
+                placeholder="e.g. 1000"
+                value={pollIntervalMs}
+                onChange={(e) => {
+                  setPollIntervalMs(parseInt(e.target.value) || 0);
+                  setError("");
+                }}
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <Input
+                type="number"
+                min="1"
+                label="Max Poll Attempts"
+                placeholder="e.g. 5"
+                value={pollMaxAttempts}
+                onChange={(e) => {
+                  setPollMaxAttempts(parseInt(e.target.value) || 0);
+                  setError("");
+                }}
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <Input
+                type="number"
+                min="100"
+                max="599"
+                label="Expected Status"
+                placeholder="e.g. 200"
+                value={pollExpectedStatus}
+                onChange={(e) => {
+                  setPollExpectedStatus(parseInt(e.target.value) || 0);
+                  setError("");
+                }}
+              />
+            </div>
+          </div>
+        )}
 
         {error && (
           <span style={{ color: "var(--status-error)", fontSize: "var(--text-sm)" }}>
