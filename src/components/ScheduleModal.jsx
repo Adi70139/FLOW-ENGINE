@@ -10,8 +10,9 @@ function ScheduleModal({ onClose }) {
   
   const currentSchedule = selectedModule?.schedule
     ? {
-        ...selectedModule.schedule,
-        active: true
+        time: selectedModule.schedule.time || "00:00",
+        timezone: selectedModule.schedule.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+        active: !!selectedModule.schedule.active
       }
     : {
         time: "00:00",

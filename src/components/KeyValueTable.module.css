@@ -53,6 +53,13 @@
   padding: 8px 12px;
 }
 
+.criticalCol {
+  width: 60px;
+  text-align: center;
+  vertical-align: middle;
+  padding: 10px 14px;
+}
+
 .actionCol {
   width: 60px;
   text-align: center;

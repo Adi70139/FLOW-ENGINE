@@ -142,6 +142,16 @@ function reducer(state, action) {
       };
 
     case "UPDATE_STEP":
+      if (action.patch && action.patch.response) {
+        try {
+          localStorage.setItem(
+            `mr_auto_step_response_${action.stepId}`,
+            JSON.stringify(action.patch.response)
+          );
+        } catch (e) {
+          console.warn("Failed to save response to localStorage:", e);
+        }
+      }
       return {
         ...state,
         modules: state.modules.map((m) => ({

@@ -23,7 +23,7 @@ const REQUEST_TABS = [
 ];
 
 function RequestEditor() {
-  const { selectedStep, selectedFlowId, selectedStepId, updateStep, selectedEnv } =
+  const { selectedStep, selectedFlowId, selectedStepId, updateStep, selectedEnv, dispatch } =
     useModules();
 
   const [activeTab, setActiveTab] = useState("headers");
@@ -37,19 +37,38 @@ function RequestEditor() {
   const [generatingAssertions, setGeneratingAssertions] = useState(false);
 
   const [localStatusCode, setLocalStatusCode] = useState("");
+  const [localStatusCodeCritical, setLocalStatusCodeCritical] = useState(false);
   const [localSchemaInput, setLocalSchemaInput] = useState("");
+  const [localSchemaCritical, setLocalSchemaCritical] = useState(false);
   const [localBodyRows, setLocalBodyRows] = useState([]);
   const [hasChanges, setHasChanges] = useState(false);
 
   useEffect(() => {
     if (selectedStep) {
       setLocalStatusCode(selectedStep.assertions?.statusCode || "");
+      setLocalStatusCodeCritical(!!selectedStep.assertions?.statusCodeCritical);
       setLocalSchemaInput(selectedStep.assertions?.schema ? JSON.stringify(selectedStep.assertions.schema, null, 2) : "");
-      setLocalBodyRows(Object.entries(selectedStep.assertions?.body || {}).map(([key, value]) => ({
-        key,
-        value: typeof value === 'object' ? JSON.stringify(value) : String(value),
-        enabled: true
-      })));
+      setLocalSchemaCritical(
+        selectedStep.assertions?.schemaCritical !== undefined 
+          ? !!selectedStep.assertions.schemaCritical 
+          : true
+      );
+
+      setLocalBodyRows(Object.entries(selectedStep.assertions?.body || {}).map(([key, obj]) => {
+        let value = obj;
+        let critical = false;
+        if (typeof obj === 'object' && obj !== null && 'critical' in obj) {
+          const { critical: c, ...rest } = obj;
+          critical = c;
+          value = rest;
+        }
+        return {
+          key,
+          value: typeof value === 'object' ? JSON.stringify(value) : String(value),
+          enabled: true,
+          critical
+        };
+      }));
       setHasChanges(false);
 
       // Reset assertion generator text areas and states for this step
@@ -85,9 +104,12 @@ function RequestEditor() {
     const body = localBodyRows.reduce((acc, row) => {
       if (row.key) {
         try {
-          acc[row.key] = JSON.parse(row.value);
+          const parsed = JSON.parse(row.value);
+          acc[row.key] = typeof parsed === 'object' && parsed !== null
+            ? { ...parsed, critical: !!row.critical }
+            : { value: parsed, critical: !!row.critical };
         } catch {
-          acc[row.key] = row.value;
+          acc[row.key] = { value: row.value, critical: !!row.critical };
         }
       }
       return acc;
@@ -96,7 +118,9 @@ function RequestEditor() {
     update({
       assertions: {
         statusCode: localStatusCode ? parseInt(localStatusCode) || null : null,
+        statusCodeCritical: localStatusCodeCritical,
         schema,
+        schemaCritical: localSchemaCritical,
         body
       }
     });
@@ -228,6 +252,20 @@ function RequestEditor() {
       const parsed = typeof body === "string" ? JSON.parse(body) : body;
       const formatted = JSON.stringify(parsed, null, 2);
       setAssertionResponseBody(formatted);
+
+      const currentResponse = selectedStep.response || {};
+      const updatedResponse = { ...currentResponse, body: formatted };
+      try {
+        localStorage.setItem(`mr_auto_step_response_${selectedStep.id}`, JSON.stringify(updatedResponse));
+      } catch (err) {
+        console.warn("Failed to save beautified response to localStorage:", err);
+      }
+      dispatch({
+        type: "UPDATE_STEP",
+        flowId: selectedFlowId,
+        stepId: selectedStep.id,
+        patch: { response: updatedResponse }
+      });
     } catch (err) {
       alert("Invalid JSON format. Please verify standard JSON syntax before beautifying.");
     }
@@ -412,7 +450,7 @@ function RequestEditor() {
                       )}
                     </div>
                     <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", fontWeight: "normal", fontStyle: "italic" }}>
-                      Run the flow once to get the response for adding/editing the assertions
+                      Note: For latest response run the flow once.
                     </span>
                   </div>
                 }
@@ -420,7 +458,23 @@ function RequestEditor() {
                 rows={6}
                 mono
                 value={responseBodyForGenerator}
-                onChange={(e) => setAssertionResponseBody(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setAssertionResponseBody(val);
+                  const currentResponse = selectedStep.response || {};
+                  const updatedResponse = { ...currentResponse, body: val };
+                  try {
+                    localStorage.setItem(`mr_auto_step_response_${selectedStep.id}`, JSON.stringify(updatedResponse));
+                  } catch (err) {
+                    console.warn("Failed to save edited response to localStorage:", err);
+                  }
+                  dispatch({
+                    type: "UPDATE_STEP",
+                    flowId: selectedFlowId,
+                    stepId: selectedStep.id,
+                    patch: { response: updatedResponse }
+                  });
+                }}
               />
 
               {assertionError && (
@@ -429,7 +483,21 @@ function RequestEditor() {
             </div>
 
             <div className={styles.assertionRow}>
-              <label>Expected Status Code</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label>Expected Status Code</label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer', color: 'var(--text-secondary)' }}>
+                  <input
+                    type="checkbox"
+                    checked={localStatusCodeCritical}
+                    onChange={(e) => {
+                      setLocalStatusCodeCritical(e.target.checked);
+                      setHasChanges(true);
+                    }}
+                    style={{ accentColor: 'var(--accent)' }}
+                  />
+                  Critical Assertion
+                </label>
+              </div>
               <Input
                 type="number"
                 placeholder="e.g. 200"
@@ -441,7 +509,26 @@ function RequestEditor() {
               />
             </div>
             <div className={styles.assertionRow}>
-              <label>JSON Schema Assertion</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label>JSON Schema Assertion</label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer', color: 'var(--text-secondary)' }}>
+                  <input
+                    type="checkbox"
+                    checked={localSchemaCritical}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      if (!checked) {
+                        const confirmUncheck = window.confirm("Are you sure? Unchecking this means the run will not fail in case of a schema mismatch.");
+                        if (!confirmUncheck) return;
+                      }
+                      setLocalSchemaCritical(checked);
+                      setHasChanges(true);
+                    }}
+                    style={{ accentColor: 'var(--accent)' }}
+                  />
+                  Critical Assertion
+                </label>
+              </div>
               <Textarea
                 placeholder="Enter JSON Schema to validate response body"
                 rows={5}
@@ -456,6 +543,8 @@ function RequestEditor() {
             <div className={styles.assertionRow}>
               <label>Field Assertions</label>
               <p className={styles.tabDescription}>Assert specific values in the response body JSON.</p>
+              <p className={styles.tabDescription}>Note: Critical Assertion failure will result in stopping the test run.</p>
+
               <KeyValueTable
                 key={`${selectedStepId}-assertions`}
                 rows={localBodyRows}
@@ -465,6 +554,7 @@ function RequestEditor() {
                 }}
                 keyPlaceholder="JSON Path (e.g. status)"
                 valuePlaceholder="Expected Value (e.g. 'success')"
+                showCritical={true}
               />
             </div>
 

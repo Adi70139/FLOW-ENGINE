@@ -10,9 +10,10 @@ function KeyValueTable({
   onChange,
   keyPlaceholder = "Key",
   valuePlaceholder = "Value",
+  showCritical = false,
 }) {
   const [localRows, setLocalRows] = useState(
-    rows.length ? rows : [{ key: "", value: "", enabled: true }]
+    rows.length ? rows : [{ key: "", value: "", enabled: true, critical: false }]
   );
 
   useEffect(() => {
@@ -20,7 +21,7 @@ function KeyValueTable({
     const localNonEmpty = localRows.filter(r => r.key?.trim() || r.value?.trim());
     
     if (JSON.stringify(parentNonEmpty) !== JSON.stringify(localNonEmpty)) {
-      setLocalRows(rows.length ? rows : [{ key: "", value: "", enabled: true }]);
+      setLocalRows(rows.length ? rows : [{ key: "", value: "", enabled: true, critical: false }]);
     }
   }, [rows, localRows]);
 
@@ -39,12 +40,12 @@ function KeyValueTable({
   }
 
   function addRow() {
-    emit([...localRows, { key: "", value: "", enabled: true }]);
+    emit([...localRows, { key: "", value: "", enabled: true, critical: false }]);
   }
 
   function removeRow(i) {
     const next = localRows.filter((_, idx) => idx !== i);
-    emit(next.length ? next : [{ key: "", value: "", enabled: true }]);
+    emit(next.length ? next : [{ key: "", value: "", enabled: true, critical: false }]);
   }
 
   return (
@@ -55,6 +56,7 @@ function KeyValueTable({
             <th className={styles.toggleCol}>On</th>
             <th className={styles.keyCol}>{keyPlaceholder}</th>
             <th className={styles.valCol}>{valuePlaceholder}</th>
+            {showCritical && <th className={styles.criticalCol}>Critical</th>}
             <th className={styles.actionCol}></th>
           </tr>
         </thead>
@@ -85,6 +87,17 @@ function KeyValueTable({
                   placeholder={valuePlaceholder}
                 />
               </td>
+              {showCritical && (
+                <td className={styles.criticalCol}>
+                  <input
+                    type="checkbox"
+                    className={styles.toggle}
+                    checked={r.critical === true}
+                    onChange={(e) => updateRow(i, { critical: e.target.checked })}
+                    title="Mark as critical assertion"
+                  />
+                </td>
+              )}
               <td className={styles.actionCol}>
                 <IconButton 
                   size="small" 

@@ -44,11 +44,11 @@ export const mapTestToStep = (test) => ({
   headersJson:
     test.headers && test.headers.length > 0
       ? JSON.stringify(
-          test.headers.reduce((acc, h) => {
-            if (h.key && h.enabled !== false) acc[h.key] = h.value;
-            return acc;
-          }, {})
-        )
+        test.headers.reduce((acc, h) => {
+          if (h.key && h.enabled !== false) acc[h.key] = h.value;
+          return acc;
+        }, {})
+      )
       : null,
   bodyJson: test.payload || null,
   assertions: test.assertions || null,
@@ -62,36 +62,49 @@ export const mapTestToStep = (test) => ({
 });
 
 /** Backend Step → Frontend Test shape */
-export const mapStepToTest = (step) => ({
-  id: step.id,
-  name: step.name,
-  description: step.description || "",
-  method: step.method,
-  endpoint: step.url,
-  headers: (() => {
-    try {
-      return step.headersJson
-        ? Object.entries(JSON.parse(step.headersJson)).map(([key, value]) => ({
+export const mapStepToTest = (step) => {
+  let cachedResponse = null;
+  try {
+    const raw = localStorage.getItem(`mr_auto_step_response_${step.id}`);
+    if (raw) {
+      cachedResponse = JSON.parse(raw);
+    }
+  } catch (e) {
+    console.warn("Failed to read/parse cached response from localStorage:", e);
+  }
+
+  return {
+    id: step.id,
+    name: step.name,
+    description: step.description || "",
+    method: step.method,
+    endpoint: step.url,
+    headers: (() => {
+      try {
+        return step.headersJson
+          ? Object.entries(JSON.parse(step.headersJson)).map(([key, value]) => ({
             key,
             value,
             enabled: true,
           }))
-        : [];
-    } catch (e) {
-      console.warn("Failed to parse headersJson:", step.headersJson);
-      return [];
-    }
-  })(),
-  payload: step.bodyJson,
-  assertions: step.assertionsJson ? JSON.parse(step.assertionsJson) : null,
-  retryCount: step.retryCount || 0,
-  retryDelayMs: step.retryDelayMs || 0,
-  initialDelayMs: step.initialDelayMs || 0,
-  pollUntilSuccess: !!step.pollUntilSuccess,
-  pollIntervalMs: step.pollIntervalMs || 0,
-  pollMaxAttempts: step.pollMaxAttempts || 0,
-  pollExpectedStatus: step.pollExpectedStatus || 0,
-});
+          : [];
+      } catch (e) {
+        console.warn("Failed to parse headersJson:", step.headersJson);
+        return [];
+      }
+    })(),
+    payload: step.bodyJson,
+    assertions: step.assertionsJson ? JSON.parse(step.assertionsJson) : null,
+    retryCount: step.retryCount || 0,
+    retryDelayMs: step.retryDelayMs || 0,
+    initialDelayMs: step.initialDelayMs || 0,
+    pollUntilSuccess: !!step.pollUntilSuccess,
+    pollIntervalMs: step.pollIntervalMs || 0,
+    pollMaxAttempts: step.pollMaxAttempts || 0,
+    pollExpectedStatus: step.pollExpectedStatus || 0,
+    response: cachedResponse,
+  };
+};
 
 
 // ─── API ──────────────────────────────────────────────────────────────────────
