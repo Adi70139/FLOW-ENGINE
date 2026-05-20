@@ -596,9 +596,30 @@ export function useModules() {
   const executeFlow = async (flowId, envId) => {
     dispatch({ type: "EXECUTION_START", id: flowId, execType: "flow" });
     try {
-      const results = await api.executeFlow(flowId, envId);
-      dispatch({ type: "EXECUTION_END", id: flowId, results, execType: "flow" });
-      return results;
+      const startRes = await api.executeFlow(flowId, envId);
+      const executionId = startRes.flowExecutionId;
+      
+      let isRunning = true;
+      let finalStatus = null;
+      
+      while (isRunning) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        try {
+          const pollStatus = await api.getFlowExecutionStatus(executionId);
+          dispatch({ type: "EXECUTION_POLLING", id: flowId, pollData: pollStatus });
+          if (pollStatus.status === "PASS" || pollStatus.status === "FAIL" || pollStatus.status === "COMPLETED" || pollStatus.status === "ERROR") {
+            isRunning = false;
+            finalStatus = pollStatus;
+          }
+        } catch (pollError) {
+          console.error("Failed to poll status:", pollError);
+          isRunning = false;
+          throw pollError;
+        }
+      }
+      
+      dispatch({ type: "EXECUTION_END", id: flowId, results: finalStatus, execType: "flow" });
+      return finalStatus;
     } catch (error) {
       dispatch({
         type: "EXECUTION_END",

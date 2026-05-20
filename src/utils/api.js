@@ -209,10 +209,12 @@ export const api = {
 
   // ── Execution ─────────────────────────────────────────────────────────────
   executeFlow: (flowId, envId) =>
-    request(`/execute/flows/${flowId}`, {
+    request(`/execute/flows/${flowId}/async`, {
       method: "POST",
       body: JSON.stringify({ environmentId: envId ? parseInt(envId) : null }),
     }),
+  getFlowExecutionStatus: (executionId) =>
+    request(`/execute/flows/runs/${executionId}/status`),
   /** POST /execute/modules/:moduleId?envId=... */
   executeModule: (moduleId, envId) => {
     const url = envId

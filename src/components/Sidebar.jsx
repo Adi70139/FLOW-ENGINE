@@ -132,29 +132,9 @@ function Sidebar() {
     if (executions[flow.id]?.status === "running") return;
 
     try {
-      const results = await executeFlow(flow.id, selectedEnvId);
-
-      results?.stepResults?.forEach((res) => {
-        dispatch({
-          type: "UPDATE_STEP",
-          flowId: flow.id,
-          stepId: res.stepId,
-          patch: {
-            response: {
-              status: res.statusCode,
-              statusText: res.success ? "OK" : res.errorMessage || "Error",
-              time: res.durationMs,
-              body: res.responseBody,
-              headers: [],
-              resolvedUrl: res.resolvedUrl,
-              resolvedHeaders: res.resolvedHeadersJson
-                ? JSON.parse(res.resolvedHeadersJson)
-                : null,
-              resolvedBody: res.resolvedBodyJson,
-            },
-          },
-        });
-      });
+      await executeFlow(flow.id, selectedEnvId);
+      // stepResults is no longer returned by the async polling API. 
+      // Status is automatically tracked via executions[flow.id].pollData
     } catch (err) {
       // Error handled in executeFlow
     }
@@ -285,12 +265,12 @@ function Sidebar() {
                     ) : exec?.status === "done" ? (
                       <span
                         className={
-                          exec.results?.success || exec.results?.allStepsPassed
+                          exec.results?.status === "PASS" || exec.results?.success || exec.results?.allStepsPassed || (exec.results?.steps && exec.results.steps.every(s => s.status === "PASS"))
                             ? styles.passText
                             : styles.failText
                         }
                       >
-                        {exec.results?.success || exec.results?.allStepsPassed ? "✓" : "✗"}
+                        {exec.results?.status === "PASS" || exec.results?.success || exec.results?.allStepsPassed || (exec.results?.steps && exec.results.steps.every(s => s.status === "PASS")) ? "✓" : "✗"}
                       </span>
                     ) : (
                       <IconPlay size={14} />

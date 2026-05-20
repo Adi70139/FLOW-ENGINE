@@ -24,7 +24,8 @@ function TestList({ onAddTest }) {
     duplicateStep,
     fetchSteps,
     updateStep,
-    addStep
+    addStep,
+    executions
   } = useModules();
 
   useEffect(() => {
@@ -35,6 +36,15 @@ function TestList({ onAddTest }) {
   }, [selectedFlowId]);
 
   const tests = selectedFlow?.tests || [];
+
+  const flowExecution = executions[selectedFlowId];
+  const resultsData = flowExecution?.pollData || flowExecution?.results;
+  const stepStatusMap = {};
+  if (resultsData && resultsData.steps) {
+    resultsData.steps.forEach(step => {
+      stepStatusMap[String(step.stepId)] = step;
+    });
+  }
 
   const [activeTab, setActiveTab] = useState("steps");
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -192,6 +202,29 @@ function TestList({ onAddTest }) {
                       </div>
                     )}
                   </div>
+                  {stepStatusMap[String(t.id)] && (
+                    <span 
+                      style={{ 
+                        fontSize: '10px', 
+                        padding: '4px 8px', 
+                        borderRadius: '12px',
+                        fontWeight: '600',
+                        whiteSpace: 'nowrap',
+                        flexShrink: 0,
+                        backgroundColor: stepStatusMap[String(t.id)].status === 'PASS' ? 'rgba(16, 185, 129, 0.1)' : 
+                                        stepStatusMap[String(t.id)].status === 'FAIL' ? 'rgba(239, 68, 68, 0.1)' : 
+                                        stepStatusMap[String(t.id)].status === 'IN_PROGRESS' ? 'rgba(245, 158, 11, 0.1)' : 
+                                        'rgba(156, 163, 175, 0.1)',
+                        color: stepStatusMap[String(t.id)].status === 'PASS' ? 'var(--status-success)' : 
+                               stepStatusMap[String(t.id)].status === 'FAIL' ? 'var(--status-error)' : 
+                               stepStatusMap[String(t.id)].status === 'IN_PROGRESS' ? 'var(--status-warning)' : 
+                               'var(--text-muted)'
+                      }}
+                    >
+                      {stepStatusMap[String(t.id)].status}
+                      {stepStatusMap[String(t.id)].durationMs > 0 && ` (${stepStatusMap[String(t.id)].durationMs}ms)`}
+                    </span>
+                  )}
                   <div className={styles.actions}>
                     <IconButton
                       size="small"
