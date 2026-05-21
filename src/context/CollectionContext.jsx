@@ -617,6 +617,86 @@ export function useModules() {
           throw pollError;
         }
       }
+
+      // Fetch full report data including response body once the run completes
+      let reportData = null;
+      try {
+        reportData = await api.getFlowReportData(flowId);
+      } catch (err) {
+        console.error("Failed to fetch flow report data:", err);
+      }
+
+      // Persist step responses from this flow execution
+      const steps = reportData?.steps || reportData?.stepResults || finalStatus?.steps || finalStatus?.stepResults || [];
+      const mod = state.modules?.find(m => m.flows?.some(f => f.id == flowId));
+      const flow = mod?.flows?.find(f => f.id == flowId);
+      const flowStepIds = flow?.tests?.map(t => t.id) || steps.map(s => s.stepId);
+      const executedStepMap = new Map(steps.map(s => [s.stepId, s]));
+
+      flowStepIds.forEach(stepId => {
+        const stepResult = executedStepMap.get(stepId);
+        if (stepResult) {
+          const responseBodyText = typeof stepResult.responseBody === 'object'
+            ? JSON.stringify(stepResult.responseBody)
+            : (stepResult.responseBody || "");
+
+          const stepResponse = {
+            status: stepResult.statusCode || (stepResult.status === "PASS" ? 200 : 500),
+            statusText: stepResult.status || (stepResult.success ? "OK" : "Failed"),
+            time: stepResult.durationMs || 0,
+            size: responseBodyText ? new Blob([responseBodyText]).size : 0,
+            body: responseBodyText,
+            headers: [],
+            resolvedUrl: stepResult.resolvedUrl || "",
+            resolvedHeaders: stepResult.resolvedHeadersJson ? (() => {
+              try {
+                return typeof stepResult.resolvedHeadersJson === "string" 
+                  ? JSON.parse(stepResult.resolvedHeadersJson) 
+                  : stepResult.resolvedHeadersJson;
+              } catch {
+                return {};
+              }
+            })() : {},
+            resolvedBody: stepResult.resolvedBodyJson ? (() => {
+              try {
+                return typeof stepResult.resolvedBodyJson === "string" 
+                  ? JSON.parse(stepResult.resolvedBodyJson) 
+                  : stepResult.resolvedBodyJson;
+              } catch {
+                return stepResult.resolvedBodyJson;
+              }
+            })() : null,
+            isFromFlowRun: true
+          };
+
+          try {
+            localStorage.setItem(`mr_auto_step_response_${stepId}`, JSON.stringify(stepResponse));
+          } catch (e) {
+            console.warn("Failed to save step response to localStorage:", e);
+          }
+
+          dispatch({
+            type: "UPDATE_STEP",
+            flowId: flowId,
+            stepId: stepId,
+            patch: { response: stepResponse }
+          });
+        } else {
+          // Clear skipped step response
+          try {
+            localStorage.removeItem(`mr_auto_step_response_${stepId}`);
+          } catch (e) {
+            console.warn("Failed to remove step response from localStorage:", e);
+          }
+
+          dispatch({
+            type: "UPDATE_STEP",
+            flowId: flowId,
+            stepId: stepId,
+            patch: { response: null }
+          });
+        }
+      });
       
       dispatch({ type: "EXECUTION_END", id: flowId, results: finalStatus, execType: "flow" });
       return finalStatus;
@@ -635,6 +715,93 @@ export function useModules() {
     dispatch({ type: "EXECUTION_START", id: moduleId, execType: "module" });
     try {
       const results = await api.executeModule(moduleId, envId);
+      const executionId = results?.moduleExecutionId || results?.id;
+
+      let reportData = null;
+      if (executionId) {
+        try {
+          reportData = await api.getModuleReportData(executionId);
+        } catch (err) {
+          console.error("Failed to fetch module report data:", err);
+        }
+      }
+
+      // Persist step responses from module execution results
+      const flowResults = reportData?.flows || results?.flowResults || [];
+      flowResults.forEach(flowRes => {
+        const flowId = flowRes.flowId;
+        const steps = flowRes.stepResults || flowRes.steps || [];
+        const mod = state.modules?.find(m => m.id == moduleId);
+        const flow = mod?.flows?.find(f => f.id == flowId);
+        const flowStepIds = flow?.tests?.map(t => t.id) || steps.map(s => s.stepId);
+        const executedStepMap = new Map(steps.map(s => [s.stepId, s]));
+
+        flowStepIds.forEach(stepId => {
+          const stepResult = executedStepMap.get(stepId);
+          if (stepResult) {
+            const responseBodyText = typeof stepResult.responseBody === 'object'
+              ? JSON.stringify(stepResult.responseBody)
+              : (stepResult.responseBody || "");
+
+            const stepResponse = {
+              status: stepResult.statusCode || (stepResult.status === "PASS" ? 200 : 500),
+              statusText: stepResult.status || (stepResult.success ? "OK" : "Failed"),
+              time: stepResult.durationMs || 0,
+              size: responseBodyText ? new Blob([responseBodyText]).size : 0,
+              body: responseBodyText,
+              headers: [],
+              resolvedUrl: stepResult.resolvedUrl || "",
+              resolvedHeaders: stepResult.resolvedHeadersJson ? (() => {
+                try {
+                  return typeof stepResult.resolvedHeadersJson === "string" 
+                    ? JSON.parse(stepResult.resolvedHeadersJson) 
+                    : stepResult.resolvedHeadersJson;
+                } catch {
+                  return {};
+                }
+              })() : {},
+              resolvedBody: stepResult.resolvedBodyJson ? (() => {
+                try {
+                  return typeof stepResult.resolvedBodyJson === "string" 
+                    ? JSON.parse(stepResult.resolvedBodyJson) 
+                    : stepResult.resolvedBodyJson;
+                } catch {
+                  return stepResult.resolvedBodyJson;
+                }
+              })() : null,
+              isFromFlowRun: true
+            };
+
+            try {
+              localStorage.setItem(`mr_auto_step_response_${stepId}`, JSON.stringify(stepResponse));
+            } catch (e) {
+              console.warn("Failed to save step response to localStorage:", e);
+            }
+
+            dispatch({
+              type: "UPDATE_STEP",
+              flowId: flowId,
+              stepId: stepId,
+              patch: { response: stepResponse }
+            });
+          } else {
+            // Clear skipped step response
+            try {
+              localStorage.removeItem(`mr_auto_step_response_${stepId}`);
+            } catch (e) {
+              console.warn("Failed to remove step response from localStorage:", e);
+            }
+
+            dispatch({
+              type: "UPDATE_STEP",
+              flowId: flowId,
+              stepId: stepId,
+              patch: { response: null }
+            });
+          }
+        });
+      });
+
       dispatch({ type: "EXECUTION_END", id: moduleId, results, execType: "module" });
       return results;
     } catch (error) {
