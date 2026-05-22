@@ -80,11 +80,8 @@ export function mapScheduleToApi(data) {
   const timezone = data?.timezone || DEFAULT_TIMEZONE();
 
   return {
-    ...data,
     time,
     timezone,
-    cronExpression: data?.cronExpression || timeToCronExpression(time),
-    active: data?.active ?? true,
   };
 }
 
