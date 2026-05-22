@@ -25,6 +25,7 @@ function TestList({ onAddTest }) {
     fetchSteps,
     updateStep,
     addStep,
+    reorderSteps,
     executions
   } = useModules();
 
@@ -51,6 +52,8 @@ function TestList({ onAddTest }) {
   const [editingStep, setEditingStep] = useState(null);
   const [dragIndex, setDragIndex] = useState(null);
   const [dropIndex, setDropIndex] = useState(null);
+  const [orderChanged, setOrderChanged] = useState(false);
+  const [savingOrder, setSavingOrder] = useState(false);
 
   function handleDragStart(e, idx) {
     setDragIndex(idx);
@@ -78,19 +81,29 @@ function TestList({ onAddTest }) {
     const next = [...tests];
     const [moved] = next.splice(dragIndex, 1);
     next.splice(idx, 0, moved);
-    
-    // Update state immediately
+
     dispatch({
       type: "REORDER_TESTS",
       flowId: selectedFlowId,
       tests: next,
     });
-
-    // Sync with backend (the backend will update all steps affected)
-    updateStep(selectedFlowId, moved.id, moved, idx);
-
+    setOrderChanged(true);
     setDragIndex(null);
     setDropIndex(null);
+  }
+
+  async function handleSaveOrder() {
+    if (!selectedFlowId || tests.length === 0) return;
+    setSavingOrder(true);
+    try {
+      await reorderSteps(selectedFlowId, tests);
+      setOrderChanged(false);
+    } catch (err) {
+      console.error("Failed to save step order:", err);
+      alert(`Unable to save step order: ${err.message || err}`);
+    } finally {
+      setSavingOrder(false);
+    }
   }
 
   function handleDragEnd() {
@@ -124,6 +137,10 @@ function TestList({ onAddTest }) {
     if (!selectedFlowId) return;
     setShowCreateModal(true);
   }
+
+  useEffect(() => {
+    setOrderChanged(false);
+  }, [selectedFlowId]);
 
   if (!selectedFlow) {
     return (
@@ -266,6 +283,16 @@ function TestList({ onAddTest }) {
           </div>
 
           <div className={styles.footer}>
+            {orderChanged && (
+              <Button
+                variant="secondary"
+                className={styles.saveBtn}
+                onClick={handleSaveOrder}
+                disabled={savingOrder}
+              >
+                {savingOrder ? "Saving order…" : "Save Order"}
+              </Button>
+            )}
             <Button 
               variant="primary" 
               className={styles.addBtn}

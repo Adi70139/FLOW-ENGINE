@@ -1,5 +1,5 @@
 import { createContext, useContext, useReducer, useEffect, useRef } from "react";
-import { api, mapStepToTest } from "../utils/api";
+import { api, mapStepToTest, normalizeSchedule } from "../utils/api";
 
 const ModuleContext = createContext(null);
 
@@ -13,6 +13,29 @@ const initialState = {
   error: null,
   executions: {}, // { [id]: { status, results, type, startedAt, finishedAt } }
 };
+
+const scheduleStorageKey = (moduleId) => `mr_auto_module_schedule_${moduleId}`;
+
+function readCachedSchedule(moduleId) {
+  try {
+    return normalizeSchedule(JSON.parse(localStorage.getItem(scheduleStorageKey(moduleId))));
+  } catch (e) {
+    console.warn("Failed to read cached schedule:", e);
+    return null;
+  }
+}
+
+function writeCachedSchedule(moduleId, schedule) {
+  try {
+    if (schedule) {
+      localStorage.setItem(scheduleStorageKey(moduleId), JSON.stringify(normalizeSchedule(schedule)));
+    } else {
+      localStorage.removeItem(scheduleStorageKey(moduleId));
+    }
+  } catch (e) {
+    console.warn("Failed to persist schedule cache:", e);
+  }
+}
 
 function reducer(state, action) {
   switch (action.type) {
@@ -169,6 +192,19 @@ function reducer(state, action) {
         })),
       };
 
+    case "REORDER_TESTS":
+      return {
+        ...state,
+        modules: state.modules.map((m) => ({
+          ...m,
+          flows: (m.flows || []).map((f) =>
+            f.id == action.flowId
+              ? { ...f, tests: action.tests }
+              : f
+          ),
+        })),
+      };
+
     case "DELETE_STEP":
       return {
         ...state,
@@ -200,13 +236,17 @@ function reducer(state, action) {
         ),
       };
 
-    case "SET_SCHEDULE":
+    case "SET_SCHEDULE": {
+      writeCachedSchedule(action.moduleId, action.schedule);
       return {
         ...state,
         modules: state.modules.map((m) =>
-          m.id == action.moduleId ? { ...m, schedule: action.schedule, scheduleLoaded: true } : m
+          m.id == action.moduleId
+            ? { ...m, schedule: normalizeSchedule(action.schedule), scheduleLoaded: true }
+            : m
         ),
       };
+    }
 
     case "EXECUTION_START":
       return {
@@ -295,20 +335,35 @@ export function ModuleProvider({ children }) {
                 flowsLoaded: true,
                 environments: envs || [],
                 envLoaded: true,
-                schedule: null,
+                schedule: normalizeSchedule(m.schedule) || readCachedSchedule(m.id),
+                scheduleLoaded: false,
               };
-            } catch (e) {
+            } catch {
               return {
                 ...m,
                 flows: null,
                 flowsLoaded: false,
                 environments: [],
                 envLoaded: false,
-                schedule: null,
+                schedule: normalizeSchedule(m.schedule) || readCachedSchedule(m.id),
+                scheduleLoaded: false,
               };
             }
           })
         );
+
+        modulesWithFlows.forEach((module) => {
+          api
+            .getModuleSchedule(module.id)
+            .then((schedule) => {
+              dispatch({ type: "SET_SCHEDULE", moduleId: module.id, schedule });
+            })
+            .catch(() => {
+              if (!module.schedule) {
+                dispatch({ type: "SET_SCHEDULE", moduleId: module.id, schedule: null });
+              }
+            });
+        });
 
         dispatch({
           type: "SET_STATE",
@@ -350,7 +405,7 @@ export function ModuleProvider({ children }) {
         try {
           const schedule = await api.getModuleSchedule(mod.id);
           dispatch({ type: "SET_SCHEDULE", moduleId: mod.id, schedule });
-        } catch (e) {
+        } catch {
           // 404 is expected when no schedule is set — mark as loaded anyway
           dispatch({ type: "SET_SCHEDULE", moduleId: mod.id, schedule: null });
         }
@@ -941,6 +996,14 @@ export function useModules() {
     }
   };
 
+  const reorderSteps = async (flowId, tests) => {
+    const steps = (tests || []).map((step, index) => ({
+      stepId: step.id,
+      stepOrder: index + 1,
+    }));
+    await api.reorderSteps(flowId, steps);
+  };
+
   const fetchSteps = async (flowId) => {
     if (!flowId) return;
     try {
@@ -1004,6 +1067,7 @@ export function useModules() {
     deleteStep,
     duplicateStep,
     fetchSteps,
+    reorderSteps,
     importFlow,
   };
 }

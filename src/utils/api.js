@@ -35,6 +35,59 @@ async function request(path, options = {}) {
 
 // ─── Mappers ─────────────────────────────────────────────────────────────────
 
+const DEFAULT_TIMEZONE = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+function timeToCronExpression(time = "00:00") {
+  const [hour = "0", minute = "0"] = String(time).split(":");
+  return `${parseInt(minute, 10) || 0} ${parseInt(hour, 10) || 0} * * *`;
+}
+
+function cronExpressionToTime(cronExpression) {
+  if (!cronExpression || typeof cronExpression !== "string") return null;
+  const [minute, hour] = cronExpression.trim().split(/\s+/);
+  if (minute == null || hour == null || minute.includes("*") || hour.includes("*")) {
+    return null;
+  }
+
+  const parsedHour = parseInt(hour, 10);
+  const parsedMinute = parseInt(minute, 10);
+  if (Number.isNaN(parsedHour) || Number.isNaN(parsedMinute)) return null;
+
+  return `${String(parsedHour).padStart(2, "0")}:${String(parsedMinute).padStart(2, "0")}`;
+}
+
+export function normalizeSchedule(schedule) {
+  if (!schedule) return null;
+
+  const time =
+    schedule.time ||
+    schedule.executionTime ||
+    schedule.localTime ||
+    cronExpressionToTime(schedule.cronExpression) ||
+    "00:00";
+
+  return {
+    ...schedule,
+    time,
+    timezone: schedule.timezone || schedule.zoneId || DEFAULT_TIMEZONE(),
+    active: schedule.active !== false && schedule.enabled !== false,
+    cronExpression: schedule.cronExpression || timeToCronExpression(time),
+  };
+}
+
+export function mapScheduleToApi(data) {
+  const time = data?.time || cronExpressionToTime(data?.cronExpression) || "00:00";
+  const timezone = data?.timezone || DEFAULT_TIMEZONE();
+
+  return {
+    ...data,
+    time,
+    timezone,
+    cronExpression: data?.cronExpression || timeToCronExpression(time),
+    active: data?.active ?? true,
+  };
+}
+
 /** Frontend Test shape → Backend Step body */
 export const mapTestToStep = (test) => ({
   name: test.name,
@@ -177,6 +230,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ name }),
     }),
+  reorderSteps: (flowId, steps) =>
+    request(`/flows/${flowId}/steps/reorder`, {
+      method: "PUT",
+      body: JSON.stringify({ steps }),
+    }),
 
   // ── Environments ──────────────────────────────────────────────────────────
   getModuleEnvironments: (moduleId) =>
@@ -197,13 +255,14 @@ export const api = {
     request(`/modules/${moduleId}/environments/${envId}`, { method: "DELETE" }),
 
   // ── Scheduler ─────────────────────────────────────────────────────────────
-  getModuleSchedule: (moduleId) => request(`/schedule/modules/${moduleId}`),
+  getModuleSchedule: async (moduleId) =>
+    normalizeSchedule(await request(`/schedule/modules/${moduleId}`)),
   /** POST /schedule/modules/:moduleId  body: { cronExpression, envId? } */
-  setModuleSchedule: (moduleId, data) =>
-    request(`/schedule/modules/${moduleId}`, {
+  setModuleSchedule: async (moduleId, data) =>
+    normalizeSchedule(await request(`/schedule/modules/${moduleId}`, {
       method: "POST",
-      body: JSON.stringify(data),
-    }),
+      body: JSON.stringify(mapScheduleToApi(data)),
+    })),
   deleteModuleSchedule: (moduleId) =>
     request(`/schedule/modules/${moduleId}`, { method: "DELETE" }),
 

@@ -125,9 +125,13 @@
   padding: 16px 24px;
   border-top: 1px solid var(--border);
   background: rgba(0, 0, 0, 0.01);
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
-.addBtn {
+.addBtn,
+.saveBtn {
   width: 100%;
 }
 

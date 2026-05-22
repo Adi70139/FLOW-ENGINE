@@ -25,12 +25,15 @@ function ScheduleModal({ onClose }) {
   const [timezone, setTimezone] = useState(currentSchedule.timezone);
   const [loading, setLoading] = useState(false);
 
+  const hasChanges = time !== currentSchedule.time || timezone !== currentSchedule.timezone;
+  const isSaveDisabled = loading || (currentSchedule.active && !hasChanges);
+
   async function handleSave() {
     setLoading(true);
     try {
       await updateSchedule(selectedModule.id, { time, timezone });
       onClose();
-    } catch (e) {
+    } catch {
       alert("Failed to save schedule");
     } finally {
       setLoading(false);
@@ -43,7 +46,7 @@ function ScheduleModal({ onClose }) {
     try {
       await deleteSchedule(selectedModule.id);
       onClose();
-    } catch (e) {
+    } catch {
       alert("Failed to delete schedule");
     } finally {
       setLoading(false);
@@ -90,7 +93,7 @@ function ScheduleModal({ onClose }) {
           )}
           <div className={styles.rightActions}>
             <Button variant="secondary" onClick={onClose} disabled={loading}>Cancel</Button>
-            <Button onClick={handleSave} disabled={loading}>
+            <Button onClick={handleSave} disabled={isSaveDisabled}>
               {loading ? "Saving..." : "Save Schedule"}
             </Button>
           </div>

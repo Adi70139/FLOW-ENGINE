@@ -83,6 +83,10 @@ function LandingPage() {
             <span className={styles.statVal}>{modules.reduce((acc, m) => acc + (m.flows?.reduce((fAcc, f) => fAcc + (f.stepCount || 0), 0) || 0), 0)}</span>
             <span className={styles.statLabel}>Total Tests</span>
           </div>
+          <div className={styles.statBox}>
+            <span className={styles.statVal}>{modules.filter((m) => m.schedule?.active).length}</span>
+            <span className={styles.statLabel}>Scheduled</span>
+          </div>
         </div>
       </div>
 
@@ -273,6 +277,23 @@ function ModuleCard({ module, onEdit, selectedEnv, onEnvChange }) {
           </div>
         )}
       </div>
+
+      {module.schedule?.active && module.schedule?.time && (
+        <div className={styles.scheduleBadge}>
+          <span className={styles.scheduleDot} />
+          <span>Scheduled · {(() => {
+            try {
+              const [h, m] = module.schedule.time.split(":");
+              const date = new Date();
+              date.setHours(parseInt(h), parseInt(m));
+              return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+            } catch { return module.schedule.time; }
+          })()}</span>
+          {module.schedule.timezone && (
+            <span className={styles.scheduleTz}>{module.schedule.timezone}</span>
+          )}
+        </div>
+      )}
 
       <div className={styles.cardActions}>
         <Button
