@@ -343,9 +343,24 @@ export const api = {
     formData.append("flowName", flowName);
     formData.append("moduleId", moduleId);
 
-    // NOTE: For multipart/form-data, we must NOT set Content-Type manually
-    // because the browser needs to set the boundary.
     return fetch(`${BASE_URL}/import/postman`, {
+      method: "POST",
+      body: formData,
+    }).then(async (res) => {
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Import failed");
+      return data;
+    });
+  },
+
+  /** POST /import/swagger  multipart: { file, flowName, moduleId } */
+  importSwagger: (file, flowName, moduleId) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("flowName", flowName);
+    formData.append("moduleId", moduleId);
+
+    return fetch(`${BASE_URL}/import/swagger`, {
       method: "POST",
       body: formData,
     }).then(async (res) => {

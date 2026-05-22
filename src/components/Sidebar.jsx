@@ -473,6 +473,7 @@ function UpdateFlowModal({ moduleId, flow, onClose }) {
 
 function ImportFlowModal({ moduleId, onClose }) {
   const { importFlow } = useModules();
+  const [importType, setImportType] = useState("postman");
   const [flowName, setFlowName] = useState("");
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -484,7 +485,7 @@ function ImportFlowModal({ moduleId, onClose }) {
     }
     setLoading(true);
     try {
-      await importFlow(moduleId, file, flowName);
+      await importFlow(moduleId, file, flowName, importType);
       onClose();
     } catch (err) {
       alert("Import failed: " + err.message);
@@ -493,9 +494,30 @@ function ImportFlowModal({ moduleId, onClose }) {
     }
   }
 
+  const typeLabel = importType === "swagger" ? "Swagger/OpenAPI file" : "Postman Collection file";
+  const acceptTypes = importType === "swagger" ? ".json,.yaml,.yml" : ".json";
+  const modalTitle = importType === "swagger" ? "Import Swagger/OpenAPI" : "Import Postman Collection";
+
   return (
-    <Modal title="Import Postman Collection" onClose={onClose} size="sm">
+    <Modal title={modalTitle} onClose={onClose} size="sm">
       <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+        <div className={styles.toggleGroup}>
+          <button
+            type="button"
+            className={`${styles.toggleButton} ${importType === "postman" ? styles.toggleActive : ""}`}
+            onClick={() => setImportType("postman")}
+          >
+            Postman
+          </button>
+          <button
+            type="button"
+            className={`${styles.toggleButton} ${importType === "swagger" ? styles.toggleActive : ""}`}
+            onClick={() => setImportType("swagger")}
+          >
+            Swagger/OpenAPI
+          </button>
+        </div>
+
         <Input
           label="Flow Name"
           placeholder="e.g. Authentication"
@@ -504,10 +526,10 @@ function ImportFlowModal({ moduleId, onClose }) {
         />
 
         <div className={styles.formGroup}>
-          <label className={styles.label}>Postman JSON File</label>
+          <label className={styles.label}>{typeLabel}</label>
           <input
             type="file"
-            accept=".json"
+            accept={acceptTypes}
             onChange={(e) => setFile(e.target.files[0])}
             className={styles.fileInput}
           />

@@ -222,6 +222,32 @@
   margin-bottom: 12px;
 }
 
+.toggleGroup {
+  display: flex;
+  gap: 8px;
+}
+
+.toggleButton {
+  flex: 1;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.toggleButton:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.toggleActive {
+  background: var(--bg-surface);
+  border-color: var(--accent);
+}
+
 .label {
   font-size: 13px;
   font-weight: 500;

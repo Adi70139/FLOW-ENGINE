@@ -568,10 +568,11 @@ export function useModules() {
     }
   };
 
-  const importFlow = async (moduleId, file, flowName) => {
+  const importFlow = async (moduleId, file, flowName, importType = "postman") => {
     dispatch({ type: "FETCH_START" });
     try {
-      const newFlow = await api.importPostman(file, flowName, moduleId);
+      const apiMethod = importType === "swagger" ? api.importSwagger : api.importPostman;
+      const newFlow = await apiMethod(file, flowName, moduleId);
       dispatch({ type: "ADD_FLOW", moduleId, flow: newFlow });
       return newFlow;
     } catch (error) {
