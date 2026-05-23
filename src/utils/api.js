@@ -18,7 +18,7 @@ async function request(path, options = {}) {
     data = await response.json();
   } catch (e) {
     if (!response.ok) {
-      throw new Error(`Server error: ${response.status} ${response.statusText}`);
+      throw new Error(`Server error: ${response.status} ${response.statusText}`, { cause: e });
     }
     return null;
   }
@@ -102,6 +102,7 @@ export const mapTestToStep = (test) => ({
       : null,
   bodyJson: test.payload || null,
   assertions: test.assertions || null,
+  skipCondition: test.skipCondition || null,
   retryCount: typeof test.retryCount === "number" ? test.retryCount : (parseInt(test.retryCount) || 0),
   retryDelayMs: typeof test.retryDelayMs === "number" ? test.retryDelayMs : (parseInt(test.retryDelayMs) || 0),
   initialDelayMs: typeof test.initialDelayMs === "number" ? test.initialDelayMs : (parseInt(test.initialDelayMs) || 0),
@@ -125,6 +126,7 @@ export const mapStepToTest = (step) => {
 
   return {
     id: step.id,
+    stepOrder: step.stepOrder,
     name: step.name,
     description: step.description || "",
     method: step.method,
@@ -138,13 +140,21 @@ export const mapStepToTest = (step) => {
             enabled: true,
           }))
           : [];
-      } catch (e) {
+      } catch {
         console.warn("Failed to parse headersJson:", step.headersJson);
         return [];
       }
     })(),
     payload: step.bodyJson,
     assertions: step.assertionsJson ? JSON.parse(step.assertionsJson) : null,
+    skipCondition: (() => {
+      if (step.skipCondition) return step.skipCondition;
+      try {
+        return step.skipConditionJson ? JSON.parse(step.skipConditionJson) : null;
+      } catch {
+        return null;
+      }
+    })(),
     retryCount: step.retryCount || 0,
     retryDelayMs: step.retryDelayMs || 0,
     initialDelayMs: step.initialDelayMs || 0,
@@ -254,7 +264,7 @@ export const api = {
   // ── Scheduler ─────────────────────────────────────────────────────────────
   getModuleSchedule: async (moduleId) =>
     normalizeSchedule(await request(`/schedule/modules/${moduleId}`)),
-  /** POST /schedule/modules/:moduleId  body: { cronExpression, envId? } */
+  /** POST /schedule/modules/:moduleId  body: { time, timezone } */
   setModuleSchedule: async (moduleId, data) =>
     normalizeSchedule(await request(`/schedule/modules/${moduleId}`, {
       method: "POST",
@@ -323,11 +333,16 @@ export const api = {
   getBulkReportData: (bulkJobId) =>
     request(`/report/bulk/${bulkJobId}/data`),
 
-  // ── Assertions ───────────────────────────────────────────────────────────
-  generateAssertions: ({ responseBody, description }) =>
+  // ── Assertions & Skip Conditions ─────────────────────────────────────────
+  generateAssertions: ({ stepId, description }) =>
     request("/assertions/generate", {
       method: "POST",
-      body: JSON.stringify({ responseBody, description }),
+      body: JSON.stringify({ stepId, description }),
+    }),
+  generateSkipCondition: ({ flowId, targetStepOrder, description }) =>
+    request("/skip-condition/generate", {
+      method: "POST",
+      body: JSON.stringify({ flowId, targetStepOrder, description }),
     }),
 
   // ── Trends, History, & Graph ─────────────────────────────────────────────

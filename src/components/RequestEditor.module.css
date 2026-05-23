@@ -199,6 +199,13 @@
   color: var(--text-primary);
 }
 
+.actionRow {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+}
+
 /* ── cURL ── */
 .curlSection {
   display: flex;

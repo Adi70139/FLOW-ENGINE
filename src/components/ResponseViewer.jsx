@@ -113,6 +113,7 @@ function ResponseViewer({ response: propResponse }) {
   const formatted = formatJson(response.body || "");
   const lineCount = formatted.split("\n").length;
   const contentTypeLabel = getContentTypeLabel(response);
+  const canOpenPdfReport = !!response.isFromFlowRun && !!selectedFlowId;
 
   const isNetworkOrExceptionError = response.status === 0 || response.status === null || response.status === undefined;
   const hasLongError = isNetworkOrExceptionError && response.statusText && response.statusText.length > 30;
@@ -149,14 +150,16 @@ function ResponseViewer({ response: propResponse }) {
         )}
 
         <div className={styles.statusBarRight}>
-          <Button 
-            variant="secondary" 
-            size="small" 
-            onClick={() => openPdfInTab(api.getFlowReport(selectedFlowId))}
-            title="Open PDF execution report in new tab"
-          >
-            📄 PDF Report
-          </Button>
+          {canOpenPdfReport && (
+            <Button
+              variant="secondary"
+              size="small"
+              onClick={() => openPdfInTab(api.getFlowReport(selectedFlowId))}
+              title="Open PDF execution report in new tab"
+            >
+              📄 PDF Report
+            </Button>
+          )}
           <Button variant="ghost" size="small" onClick={handleCopy}>
             {copied ? "✓ Copied" : "📋 Copy"}
           </Button>

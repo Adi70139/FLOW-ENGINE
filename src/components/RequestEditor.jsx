@@ -17,6 +17,7 @@ import { useEffect } from "react";
 const REQUEST_TABS = [
   { id: "headers", label: "Headers" },
   { id: "body", label: "Body" },
+  { id: "skip", label: "Skip Condition" },
   { id: "assertions", label: "Assertions" },
   { id: "extract", label: "Tests/Extract" },
   { id: "curl", label: "Import cURL", highlight: true },
@@ -29,12 +30,15 @@ function RequestEditor() {
   const [activeTab, setActiveTab] = useState("headers");
   const [loading, setLoading] = useState(false);
   const [curlInput, setCurlInput] = useState("");
-  const [curlParsed, setCurlParsed] = useState(null);
   const [showParameterize, setShowParameterize] = useState(false);
   const [assertionPrompt, setAssertionPrompt] = useState("");
   const [assertionResponseBody, setAssertionResponseBody] = useState("");
   const [assertionError, setAssertionError] = useState("");
   const [generatingAssertions, setGeneratingAssertions] = useState(false);
+  const [skipPrompt, setSkipPrompt] = useState("");
+  const [skipConditionInput, setSkipConditionInput] = useState("");
+  const [skipConditionError, setSkipConditionError] = useState("");
+  const [generatingSkipCondition, setGeneratingSkipCondition] = useState(false);
 
   const [localStatusCode, setLocalStatusCode] = useState("");
   const [localStatusCodeCritical, setLocalStatusCodeCritical] = useState(false);
@@ -75,8 +79,11 @@ function RequestEditor() {
       setAssertionResponseBody(selectedStep.response?.body || "");
       setAssertionPrompt("");
       setAssertionError("");
+      setSkipPrompt("");
+      setSkipConditionInput(selectedStep.skipCondition ? JSON.stringify(selectedStep.skipCondition, null, 2) : "");
+      setSkipConditionError("");
     }
-  }, [selectedStepId, selectedStep?.assertions, selectedStep?.response]);
+  }, [selectedStepId, selectedStep?.assertions, selectedStep?.response, selectedStep?.skipCondition]);
 
   if (!selectedStep) {
     return (
@@ -93,7 +100,7 @@ function RequestEditor() {
   }
 
   function handleSaveAssertions() {
-    let schema = null;
+    let schema;
     try {
       schema = localSchemaInput.trim() ? JSON.parse(localSchemaInput) : null;
     } catch (err) {
@@ -125,6 +132,42 @@ function RequestEditor() {
       }
     });
     setHasChanges(false);
+  }
+
+  function handleSaveSkipCondition() {
+    try {
+      const skipCondition = skipConditionInput.trim() ? JSON.parse(skipConditionInput) : null;
+      update({ skipCondition });
+      setSkipConditionError("");
+    } catch (err) {
+      setSkipConditionError("Invalid skip condition JSON: " + err.message);
+    }
+  }
+
+  function handleBeautifyResponseBody() {
+    const body = assertionResponseBody || selectedStep.response?.body || "";
+    if (!body) return;
+    try {
+      const parsed = typeof body === "string" ? JSON.parse(body) : body;
+      const formatted = JSON.stringify(parsed, null, 2);
+      setAssertionResponseBody(formatted);
+
+      const currentResponse = selectedStep.response || {};
+      const updatedResponse = { ...currentResponse, body: formatted };
+      try {
+        localStorage.setItem(`mr_auto_step_response_${selectedStep.id}`, JSON.stringify(updatedResponse));
+      } catch (err) {
+        console.warn("Failed to save beautified response to localStorage:", err);
+      }
+      dispatch({
+        type: "UPDATE_STEP",
+        flowId: selectedFlowId,
+        stepId: selectedStep.id,
+        patch: { response: updatedResponse }
+      });
+    } catch {
+      alert("Invalid JSON format. Please verify standard JSON syntax before beautifying.");
+    }
   }
 
   // Helper to substitute both {{key}} and {key}
@@ -211,7 +254,6 @@ function RequestEditor() {
 
   function handleApplyCurl() {
     const parsed = parseCurl(curlInput);
-    setCurlParsed(parsed);
     update({
       method: parsed.method || "GET",
       endpoint: parsed.url || "",
@@ -219,7 +261,6 @@ function RequestEditor() {
       payload: parsed.data || "",
     });
     setCurlInput("");
-    setCurlParsed(null);
     setActiveTab("headers");
   }
 
@@ -239,44 +280,16 @@ function RequestEditor() {
       const parsed = typeof payload === "string" ? JSON.parse(payload) : payload;
       const formatted = JSON.stringify(parsed, null, 2);
       update({ payload: formatted });
-    } catch (err) {
-      alert("Invalid JSON format. Please verify standard JSON syntax before beautifying.");
-    }
-  }
-
-  // ── Beautify Response Body ──
-  function handleBeautifyResponseBody() {
-    const body = assertionResponseBody || selectedStep.response?.body || "";
-    if (!body) return;
-    try {
-      const parsed = typeof body === "string" ? JSON.parse(body) : body;
-      const formatted = JSON.stringify(parsed, null, 2);
-      setAssertionResponseBody(formatted);
-
-      const currentResponse = selectedStep.response || {};
-      const updatedResponse = { ...currentResponse, body: formatted };
-      try {
-        localStorage.setItem(`mr_auto_step_response_${selectedStep.id}`, JSON.stringify(updatedResponse));
-      } catch (err) {
-        console.warn("Failed to save beautified response to localStorage:", err);
-      }
-      dispatch({
-        type: "UPDATE_STEP",
-        flowId: selectedFlowId,
-        stepId: selectedStep.id,
-        patch: { response: updatedResponse }
-      });
-    } catch (err) {
+    } catch {
       alert("Invalid JSON format. Please verify standard JSON syntax before beautifying.");
     }
   }
 
   async function handleGenerateAssertions() {
-    const responseBody = assertionResponseBody.trim() || selectedStep.response?.body || "";
     const description = assertionPrompt.trim();
 
-    if (!responseBody || !description) {
-      setAssertionError("Enter both a response body and the assertion description.");
+    if (!description) {
+      setAssertionError("Enter the assertion description.");
       return;
     }
 
@@ -284,7 +297,7 @@ function RequestEditor() {
     setAssertionError("");
 
     try {
-      const assertions = await api.generateAssertions({ responseBody, description });
+      const assertions = await api.generateAssertions({ stepId: selectedStep.id, description });
       update({ assertions });
     } catch (err) {
       setAssertionError(err.message || "Failed to generate assertions.");
@@ -293,9 +306,37 @@ function RequestEditor() {
     }
   }
 
-  const hasPayload = !!(selectedStep.payload && selectedStep.payload.trim());
-  const responseBodyForGenerator = assertionResponseBody || selectedStep.response?.body || "";
+  async function handleGenerateSkipCondition() {
+    const description = skipPrompt.trim();
 
+    if (!description) {
+      setSkipConditionError("Enter the skip condition description.");
+      return;
+    }
+
+    setGeneratingSkipCondition(true);
+    setSkipConditionError("");
+
+    try {
+      const skipCondition = await api.generateSkipCondition({
+        flowId: selectedFlowId,
+        targetStepOrder: selectedStep.stepOrder || 1,
+        description
+      });
+
+      setSkipConditionInput(JSON.stringify(skipCondition, null, 2));
+    } catch (err) {
+      setSkipConditionError(err.message || "Failed to generate skip condition.");
+    } finally {
+      setGeneratingSkipCondition(false);
+    }
+  }
+
+  const hasPayload = !!(selectedStep.payload && selectedStep.payload.trim());
+  const savedSkipConditionInput = selectedStep.skipCondition ? JSON.stringify(selectedStep.skipCondition, null, 2) : "";
+  const hasSkipConditionChanges = skipConditionInput.trim() !== savedSkipConditionInput.trim();
+  const canSaveSkipCondition = skipConditionInput.trim().length > 0 && hasSkipConditionChanges;
+  const responseBodyForGenerator = assertionResponseBody || selectedStep.response?.body || "";
   return (
     <div className={styles.editor}>
       <div className={styles.methodRow}>
@@ -386,6 +427,60 @@ function RequestEditor() {
           </div>
         )}
 
+        {activeTab === "skip" && (
+          <div className={styles.assertionsSection}>
+            <div className={styles.generateAssertions}>
+              <div className={styles.generateHeader}>
+                <div>
+                  <h3>Generate Skip Condition</h3>
+                  <p className={styles.tabDescription}>
+                    Describe when this step should be skipped. Review and tweak the generated JSON before saving.
+                  </p>
+                </div>
+                <Button
+                  size="small"
+                  onClick={handleGenerateSkipCondition}
+                  disabled={generatingSkipCondition}
+                >
+                  {generatingSkipCondition ? "Generating..." : "Generate"}
+                </Button>
+              </div>
+
+              <Textarea
+                label="English Description"
+                placeholder="e.g. Skip this step when the previous response status is not active."
+                rows={3}
+                value={skipPrompt}
+                onChange={(e) => setSkipPrompt(e.target.value)}
+              />
+
+              {skipConditionError && (
+                <div className={styles.assertionError}>{skipConditionError}</div>
+              )}
+            </div>
+
+            <div className={styles.assertionRow}>
+              <label>Skip Condition JSON</label>
+              <Textarea
+                placeholder={'{\n  "logic": "AND",\n  "conditions": []\n}'}
+                rows={8}
+                mono
+                value={skipConditionInput}
+                onChange={(e) => setSkipConditionInput(e.target.value)}
+              />
+            </div>
+
+            <div className={styles.actionRow}>
+              <Button variant="secondary" onClick={() => setSkipConditionInput("")}>
+                Clear
+              </Button>
+              <Button onClick={handleSaveSkipCondition} disabled={!canSaveSkipCondition}>
+                Save Skip Condition
+              </Button>
+            </div>
+          </div>
+        )}
+
         {activeTab === "assertions" && (
           <div className={styles.assertionsSection}>
             <div className={styles.generateAssertions}>
@@ -393,7 +488,7 @@ function RequestEditor() {
                 <div>
                   <h3>Generate Assertions</h3>
                   <p className={styles.tabDescription}>
-                    Describe the checks in English and generate structured assertion JSON from the response body.
+                    Describe the checks in English and generate structured assertion JSON for this step.
                   </p>
                   <p className={styles.aiNote}>
                     AI-generated assertions can be wrong. Please review and verify them before saving or running the flow.
@@ -450,7 +545,7 @@ function RequestEditor() {
                       )}
                     </div>
                     <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", fontWeight: "normal", fontStyle: "italic" }}>
-                      Note: For latest response run the flow once.
+                      Note: The generator sends step id and description only.
                     </span>
                   </div>
                 }
@@ -584,10 +679,7 @@ function RequestEditor() {
           <div className={styles.curlSection}>
             <Textarea
               value={curlInput}
-              onChange={(e) => {
-                setCurlInput(e.target.value);
-                setCurlParsed(null);
-              }}
+              onChange={(e) => setCurlInput(e.target.value)}
               placeholder={`Paste your cURL command here...`}
               rows={6}
               mono
