@@ -11,6 +11,7 @@ import ParameterizeModal from "./ParameterizeModal";
 import EmptyState from "./ui/empty-state/EmptyState";
 import { parseCurl } from "../utils/parseCurl";
 import { api, sanitizeSkipCondition } from "../utils/api";
+import { toast } from "./ui/toast/toast";
 import styles from "./RequestEditor.module.css";
 import { useEffect } from "react";
 
@@ -106,7 +107,7 @@ function RequestEditor() {
     try {
       schema = localSchemaInput.trim() ? JSON.parse(localSchemaInput) : null;
     } catch (err) {
-      alert("Invalid JSON Schema structure: " + err.message);
+      toast.error("Invalid JSON Schema structure: " + err.message);
       return;
     }
 
@@ -134,6 +135,7 @@ function RequestEditor() {
       }
     });
     setHasChanges(false);
+    toast.success("Assertions saved");
   }
 
   function handleSaveSkipCondition() {
@@ -144,8 +146,10 @@ function RequestEditor() {
       update({ skipCondition });
       setSkipConditionInput(skipCondition ? JSON.stringify(skipCondition, null, 2) : "");
       setSkipConditionError("");
+      toast.success("Skip condition saved");
     } catch (err) {
       setSkipConditionError("Invalid skip condition JSON: " + err.message);
+      toast.error("Invalid skip condition JSON");
     }
   }
 
@@ -171,7 +175,7 @@ function RequestEditor() {
         patch: { response: updatedResponse }
       });
     } catch {
-      alert("Invalid JSON format. Please verify standard JSON syntax before beautifying.");
+      toast.error("Invalid JSON format. Please verify standard JSON syntax before beautifying.");
     }
   }
 
@@ -237,6 +241,7 @@ function RequestEditor() {
           resolvedBody: resolvedBody
         },
       });
+      toast.success("Request completed");
     } catch (e) {
       const elapsed = Math.round(performance.now() - startTime);
       update({
@@ -252,6 +257,7 @@ function RequestEditor() {
           resolvedBody: resolvedBody
         },
       });
+      toast.error("Request failed");
     } finally {
       setLoading(false);
     }
@@ -286,7 +292,7 @@ function RequestEditor() {
       const formatted = JSON.stringify(parsed, null, 2);
       update({ payload: formatted });
     } catch {
-      alert("Invalid JSON format. Please verify standard JSON syntax before beautifying.");
+      toast.error("Invalid JSON format. Please verify standard JSON syntax before beautifying.");
     }
   }
 
@@ -304,8 +310,10 @@ function RequestEditor() {
     try {
       const assertions = await api.generateAssertions({ stepId: selectedStep.id, description });
       update({ assertions });
+      toast.success("Assertions generated");
     } catch (err) {
       setAssertionError(err.message || "Failed to generate assertions.");
+      toast.error(err.message || "Failed to generate assertions");
     } finally {
       setGeneratingAssertions(false);
     }
@@ -332,8 +340,10 @@ function RequestEditor() {
 
       setSkipConditionInput(JSON.stringify(skipCondition, null, 2));
       setSkipConditionExplanation(generated?.explanation || "");
+      toast.success("Skip condition generated");
     } catch (err) {
       setSkipConditionError(err.message || "Failed to generate skip condition.");
+      toast.error(err.message || "Failed to generate skip condition");
     } finally {
       setGeneratingSkipCondition(false);
     }

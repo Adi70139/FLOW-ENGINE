@@ -1,11 +1,11 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useModules } from "../context/CollectionContext";
 import { api } from "../utils/api";
 import Button from "./ui/button/Button";
 import EmptyState from "./ui/empty-state/EmptyState";
 import Badge from "./ui/badge/Badge";
-import { IconBack, IconModule, IconFlow, IconReport, IconChevron } from "./ui/icons/Icons";
+import { IconBack, IconFlow, IconChevron } from "./ui/icons/Icons";
 import styles from "./Report.module.css";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -264,7 +264,189 @@ const TABS = [
   { key: "module", label: "Modules" },
   { key: "flow", label: "Flows" },
   { key: "bulk", label: "Bulk Jobs" },
+  { key: "schedule", label: "Scheduled Runs" },
 ];
+
+function ScheduleAnalyticsView({ modules }) {
+  const [availableModules, setAvailableModules] = useState(modules);
+  const scheduledModules = availableModules.filter((module) => module.schedule?.active);
+  const fallbackModuleId = scheduledModules[0]?.id || availableModules[0]?.id || "";
+  const [moduleId, setModuleId] = useState(fallbackModuleId ? String(fallbackModuleId) : "");
+  const [runs, setRuns] = useState([]);
+  const [pageInfo, setPageInfo] = useState(null);
+  const [selectedRunId, setSelectedRunId] = useState(null);
+  const [detail, setDetail] = useState(null);
+  const [loadingRuns, setLoadingRuns] = useState(false);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [error, setError] = useState("");
+
+  const selectedModule = availableModules.find((module) => String(module.id) === String(moduleId));
+  const totalRuns = pageInfo?.totalElements || runs.length;
+  const passedRuns = runs.filter((run) => ["PASS", "PASSED", "SUCCESS", "COMPLETED"].includes(String(run.status).toUpperCase())).length;
+  const failedRuns = runs.filter((run) => ["FAIL", "FAILED", "ERROR"].includes(String(run.status).toUpperCase())).length;
+  const skippedSteps = runs.reduce((sum, run) => sum + (run.skippedSteps || 0), 0);
+
+  useEffect(() => {
+    if (modules.length > 0) {
+      setAvailableModules(modules);
+      return;
+    }
+
+    api
+      .getModules()
+      .then((data) => setAvailableModules(data || []))
+      .catch(() => setAvailableModules([]));
+  }, [modules]);
+
+  const loadRuns = useCallback(async () => {
+    if (!moduleId) return;
+    setLoadingRuns(true);
+    setError("");
+    try {
+      const page = await api.getModuleScheduleRuns(moduleId, 0, 20);
+      const content = page?.content || [];
+      setRuns(content);
+      setPageInfo(page);
+      const nextRunId = content[0]?.executionId || null;
+      setSelectedRunId(nextRunId);
+    } catch (err) {
+      setRuns([]);
+      setPageInfo(null);
+      setSelectedRunId(null);
+      setDetail(null);
+      setError(err.message || "Failed to load scheduled runs.");
+    } finally {
+      setLoadingRuns(false);
+    }
+  }, [moduleId]);
+
+  useEffect(() => {
+    if (!moduleId && fallbackModuleId) setModuleId(String(fallbackModuleId));
+  }, [moduleId, fallbackModuleId]);
+
+  useEffect(() => {
+    loadRuns();
+  }, [loadRuns]);
+
+  useEffect(() => {
+    async function loadDetail() {
+      if (!selectedRunId) {
+        setDetail(null);
+        return;
+      }
+      setLoadingDetail(true);
+      setError("");
+      try {
+        const data = await api.getModuleScheduleRunDetail(selectedRunId);
+        setDetail(data);
+      } catch (err) {
+        setDetail(null);
+        setError(err.message || "Failed to load scheduled run detail.");
+      } finally {
+        setLoadingDetail(false);
+      }
+    }
+    loadDetail();
+  }, [selectedRunId]);
+
+  if (availableModules.length === 0) {
+    return <EmptyState icon="⏱" title="No modules available" subtitle="Create a module and schedule it to start collecting scheduled run analytics." />;
+  }
+
+  return (
+    <div className={styles.reportArea}>
+      <div className={styles.filterBar}>
+        <div>
+          <label>Module</label>
+          <select value={moduleId} onChange={(e) => setModuleId(e.target.value)}>
+            {availableModules.map((module) => (
+              <option key={module.id} value={module.id}>
+                {module.name}{module.schedule?.active ? " • scheduled" : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+        <Button variant="secondary" size="small" onClick={loadRuns} disabled={loadingRuns} icon={loadingRuns ? <span className={styles.spinner} /> : "↻"}>
+          Refresh Runs
+        </Button>
+      </div>
+
+      {error && <div className={styles.errorBanner}>⚠️ {error}</div>}
+
+      <div className={styles.summaryGrid}>
+        <StatCard label="Module" value={selectedModule?.name || "—"} sub={selectedModule?.schedule?.active ? `${selectedModule.schedule.time} • ${selectedModule.schedule.timezone}` : "No active schedule"} />
+        <StatCard label="Scheduled Runs" value={totalRuns} />
+        <StatCard label="Passed" value={passedRuns} variant="success" />
+        <StatCard label="Failed" value={failedRuns} variant={failedRuns > 0 ? "danger" : ""} />
+        <StatCard label="Skipped Steps" value={skippedSteps} variant={skippedSteps > 0 ? "warning" : ""} />
+        <StatCard label="Latest Status" value={runs[0] ? <Badge variant={statusVariant(runs[0].status)}>{runs[0].status}</Badge> : "—"} sub={fmtDate(runs[0]?.finishedAt || runs[0]?.startedAt)} />
+      </div>
+
+      <div className={styles.analyticsGrid}>
+        <section>
+          <div className={styles.sectionTitle}>Scheduled Job Results</div>
+          <div className={styles.list}>
+            {runs.map((run) => (
+              <button
+                key={run.executionId}
+                className={`${styles.runRow} ${String(selectedRunId) === String(run.executionId) ? styles.runRowActive : ""}`}
+                onClick={() => setSelectedRunId(run.executionId)}
+              >
+                <div>
+                  <h3>Run #{run.executionId}</h3>
+                  <p>{fmtDate(run.startedAt)} • {run.passedFlows || 0}/{run.totalFlows || 0} flows passed</p>
+                </div>
+                <div className={styles.itemActions}>
+                  <span className={styles.durationLabel}>{fmtMs(run.durationMs)}</span>
+                  <Badge variant={statusVariant(run.status)}>{run.status}</Badge>
+                </div>
+              </button>
+            ))}
+            {!loadingRuns && runs.length === 0 && (
+              <div className={styles.emptySteps}>No scheduled executions found for this module.</div>
+            )}
+          </div>
+        </section>
+
+        <section>
+          <div className={styles.sectionTitle}>Run Detail</div>
+          {loadingDetail ? (
+            <div className={styles.loadingPanel}><span className={styles.spinner} /> Loading run detail...</div>
+          ) : detail ? (
+            <div className={styles.detailPanel}>
+              <div className={styles.detailHeader}>
+                <div>
+                  <h3>{detail.moduleName}</h3>
+                  <p>Execution #{detail.executionId} • {fmtMs(detail.durationMs)}</p>
+                </div>
+                <Badge variant={statusVariant(detail.status)}>{detail.status}</Badge>
+              </div>
+              {(detail.flows || []).map((flow) => (
+                <div key={flow.flowExecutionId || flow.flowId} className={styles.scheduleFlowBlock}>
+                  <div className={styles.scheduleFlowHeader}>
+                    <div>
+                      <h4>{flow.flowName}</h4>
+                      <p>{(flow.steps || []).length} steps • {fmtMs(flow.durationMs)}</p>
+                    </div>
+                    <Badge variant={statusVariant(flow.status)}>{flow.status}</Badge>
+                  </div>
+                  <div className={styles.stepsList}>
+                    {(flow.steps || []).map((step, index) => (
+                      <StepDetail key={step.stepExecutionId || step.stepId || index} step={step} />
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {(detail.flows || []).length === 0 && <div className={styles.emptySteps}>No flow details returned for this run.</div>}
+            </div>
+          ) : (
+            <div className={styles.emptySteps}>Select a scheduled run to inspect its flow and step results.</div>
+          )}
+        </section>
+      </div>
+    </div>
+  );
+}
 
 function Report() {
   const navigate = useNavigate();
@@ -293,6 +475,10 @@ function Report() {
   }, [executions]); // Re-compute when context executions change
 
   const fetchData = useCallback(async () => {
+    if (activeTab === "schedule") {
+      setReportData(null);
+      return;
+    }
     if (!idParam && activeTab !== "summary") {
       setReportData(null);
       return;
@@ -345,6 +531,7 @@ function Report() {
   };
 
   const getDownloadUrl = () => {
+    if (activeTab === "schedule" && idParam) return api.getModuleReport(idParam);
     if (!reportData) return null;
     if (activeTab === "summary") {
       const latest = history[0];
@@ -446,6 +633,7 @@ function Report() {
               {activeTab === "bulk" && <BulkView data={reportData} />}
               {activeTab === "module" && <ModuleView data={reportData} />}
               {activeTab === "flow" && <FlowView data={reportData} />}
+              {activeTab === "schedule" && <ScheduleAnalyticsView modules={modules} />}
             </>
           )}
         </main>

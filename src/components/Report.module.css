@@ -543,3 +543,132 @@
   color: var(--text-muted);
   font-style: italic;
 }
+
+.filterBar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  margin-bottom: 24px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.filterBar label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.filterBar select {
+  min-width: 280px;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font: inherit;
+  font-weight: 650;
+}
+
+.analyticsGrid {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.9fr) minmax(420px, 1.3fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.runRow {
+  width: 100%;
+  padding: 16px 18px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s var(--ease);
+}
+
+.runRow:hover,
+.runRowActive {
+  border-color: var(--accent);
+  background: rgba(16, 185, 129, 0.07);
+}
+
+.runRow h3 {
+  margin: 0;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+
+.runRow p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.detailPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.detailHeader,
+.scheduleFlowHeader {
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-surface);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.detailHeader h3,
+.scheduleFlowHeader h4 {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.detailHeader p,
+.scheduleFlowHeader p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.scheduleFlowBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.loadingPanel {
+  min-height: 160px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--text-muted);
+  background: var(--bg-surface);
+}
+
+@media (max-width: 1100px) {
+  .analyticsGrid {
+    grid-template-columns: 1fr;
+  }
+}

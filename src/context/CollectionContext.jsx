@@ -1,5 +1,6 @@
 import { createContext, useContext, useReducer, useEffect, useRef } from "react";
 import { api, mapStepToTest, normalizeSchedule } from "../utils/api";
+import { toast } from "../components/ui/toast/toast";
 
 const ModuleContext = createContext(null);
 
@@ -464,9 +465,11 @@ export function useModules() {
         type: "ADD_MODULE",
         module: { ...newMod, flows: [], environments: [], schedule: null },
       });
+      toast.success("Module created");
       return newMod;
     } catch (error) {
       dispatch({ type: "FETCH_ERROR", error: error.message });
+      toast.error(error.message || "Failed to create module");
       throw error;
     }
   };
@@ -476,9 +479,11 @@ export function useModules() {
     try {
       const updated = await api.updateModule(id, data);
       dispatch({ type: "UPDATE_MODULE", id, patch: data });
+      toast.success("Module updated");
       return updated;
     } catch (error) {
       console.error("Failed to update module:", error);
+      toast.error(error.message || "Failed to update module");
       throw error;
     }
   };
@@ -487,8 +492,10 @@ export function useModules() {
     try {
       await api.deleteModule(id);
       dispatch({ type: "DELETE_MODULE", id });
+      toast.success("Module deleted");
     } catch (error) {
       console.error(error);
+      toast.error(error.message || "Failed to delete module");
     }
   };
 
@@ -499,9 +506,11 @@ export function useModules() {
       const newEnv = await api.createEnvironment(moduleId, data);
       const envs = [...(selectedModule?.environments || []), newEnv];
       dispatch({ type: "SET_ENVIRONMENTS", moduleId, environments: envs });
+      toast.success("Environment created");
       return newEnv;
     } catch (error) {
       console.error("Failed to add environment:", error);
+      toast.error(error.message || "Failed to create environment");
       throw error;
     }
   };
@@ -513,8 +522,10 @@ export function useModules() {
         e.id == envId ? updated : e
       );
       dispatch({ type: "SET_ENVIRONMENTS", moduleId, environments: envs });
+      toast.success("Environment updated");
     } catch (error) {
       console.error("Failed to update environment:", error);
+      toast.error(error.message || "Failed to update environment");
       throw error;
     }
   };
@@ -525,8 +536,10 @@ export function useModules() {
       await api.deleteEnvironment(moduleId, envId);
       const envs = (selectedModule?.environments || []).filter((e) => e.id != envId);
       dispatch({ type: "SET_ENVIRONMENTS", moduleId, environments: envs });
+      toast.success("Environment deleted");
     } catch (error) {
       console.error("Failed to delete environment:", error);
+      toast.error(error.message || "Failed to delete environment");
       throw error;
     }
   };
@@ -537,8 +550,10 @@ export function useModules() {
     try {
       const schedule = await api.setModuleSchedule(moduleId, data);
       dispatch({ type: "SET_SCHEDULE", moduleId, schedule });
+      toast.success("Schedule saved");
     } catch (error) {
       console.error("Failed to update schedule:", error);
+      toast.error(error.message || "Failed to save schedule");
       throw error;
     }
   };
@@ -547,8 +562,10 @@ export function useModules() {
     try {
       await api.deleteModuleSchedule(moduleId);
       dispatch({ type: "SET_SCHEDULE", moduleId, schedule: null });
+      toast.success("Schedule deactivated");
     } catch (error) {
       console.error("Failed to delete schedule:", error);
+      toast.error(error.message || "Failed to deactivate schedule");
       throw error;
     }
   };
@@ -561,9 +578,11 @@ export function useModules() {
     try {
       const newFlow = await api.createFlow({ name, description, environmentId }, mod.name);
       dispatch({ type: "ADD_FLOW", moduleId: mod.id, flow: newFlow });
+      toast.success("Flow created");
       return newFlow;
     } catch (error) {
       console.error("Failed to create flow:", error);
+      toast.error(error.message || "Failed to create flow");
       throw error;
     }
   };
@@ -574,9 +593,11 @@ export function useModules() {
       const apiMethod = importType === "swagger" ? api.importSwagger : api.importPostman;
       const newFlow = await apiMethod(file, flowName, moduleId);
       dispatch({ type: "ADD_FLOW", moduleId, flow: newFlow });
+      toast.success("Flow imported");
       return newFlow;
     } catch (error) {
       dispatch({ type: "FETCH_ERROR", error: error.message });
+      toast.error(error.message || "Import failed");
       throw error;
     }
   };
@@ -588,9 +609,11 @@ export function useModules() {
     try {
       const updated = await api.updateFlow(flowId, data, mod.name);
       dispatch({ type: "UPDATE_FLOW", moduleId, id: flowId, patch: data });
+      toast.success("Flow updated");
       return updated;
     } catch (error) {
       console.error("Failed to update flow:", error);
+      toast.error(error.message || "Failed to update flow");
       throw error;
     }
   };
@@ -599,9 +622,11 @@ export function useModules() {
     try {
       const newFlow = await api.duplicateFlow(flowId, { name, targetModuleId: moduleId });
       dispatch({ type: "ADD_FLOW", moduleId, flow: newFlow });
+      toast.success("Flow duplicated");
       return newFlow;
     } catch (error) {
       console.error("Failed to duplicate flow:", error);
+      toast.error(error.message || "Failed to duplicate flow");
       throw error;
     }
   };
@@ -610,8 +635,10 @@ export function useModules() {
     try {
       await api.deleteFlow(flowId);
       dispatch({ type: "DELETE_FLOW", moduleId, id: flowId });
+      toast.success("Flow deleted");
     } catch (error) {
       console.error(error);
+      toast.error(error.message || "Failed to delete flow");
     }
   };
 
@@ -629,8 +656,10 @@ export function useModules() {
         id: flowId,
         patch: { defaultEnvironmentId: envId ? parseInt(envId) : null },
       });
+      toast.success(envId ? "Flow environment assigned" : "Flow environment cleared");
     } catch (error) {
       console.error("Failed to set flow environment:", error);
+      toast.error(error.message || "Failed to update flow environment");
       throw error;
     }
   };
@@ -755,6 +784,7 @@ export function useModules() {
       });
       
       dispatch({ type: "EXECUTION_END", id: flowId, results: finalStatus, execType: "flow" });
+      toast.success("Flow run completed");
       return finalStatus;
     } catch (error) {
       dispatch({
@@ -763,6 +793,7 @@ export function useModules() {
         results: { error: error.message },
         execType: "flow",
       });
+      toast.error(error.message || "Flow run failed");
       throw error;
     }
   };
@@ -859,6 +890,7 @@ export function useModules() {
       });
 
       dispatch({ type: "EXECUTION_END", id: moduleId, results, execType: "module" });
+      toast.success("Module run completed");
       return results;
     } catch (error) {
       dispatch({
@@ -867,6 +899,7 @@ export function useModules() {
         results: { error: error.message },
         execType: "module",
       });
+      toast.error(error.message || "Module run failed");
       throw error;
     }
   };
@@ -885,6 +918,7 @@ export function useModules() {
       if (!jobId) {
         // API returned synchronously — no polling needed
         dispatch({ type: "EXECUTION_END", id: "bulk", results: job, execType: "bulk" });
+        toast.success("Bulk run completed");
         return job;
       }
 
@@ -909,6 +943,7 @@ export function useModules() {
                 results: { ...status, jobId },
                 execType: "bulk",
               });
+              toast.success("Bulk run completed");
               resolve(status);
               return;
             }
@@ -920,6 +955,7 @@ export function useModules() {
                 results: { error: "Timed out waiting for bulk job", jobId },
                 execType: "bulk",
               });
+              toast.error("Bulk run timed out");
               reject(new Error("Bulk job timed out"));
               return;
             }
@@ -932,6 +968,7 @@ export function useModules() {
               results: { error: err.message, jobId },
               execType: "bulk",
             });
+            toast.error(err.message || "Bulk run failed");
             reject(err);
           }
         };
@@ -945,6 +982,7 @@ export function useModules() {
         results: { error: error.message },
         execType: "bulk",
       });
+      toast.error(error.message || "Bulk run failed");
       throw error;
     }
   };
@@ -956,9 +994,11 @@ export function useModules() {
       const newStep = await api.createStep(flowId, stepData);
       const step = mapStepToTest(newStep);
       dispatch({ type: "ADD_STEP", flowId, step });
+      toast.success("Step created");
       return step;
     } catch (error) {
       console.error("Failed to create step:", error);
+      toast.error(error.message || "Failed to create step");
       throw error;
     }
   };
@@ -973,6 +1013,7 @@ export function useModules() {
       await api.updateStep(flowId, stepId, updated);
     } catch (error) {
       console.error("Failed to sync step update:", error);
+      toast.error(error.message || "Failed to save step");
     }
   };
 
@@ -980,8 +1021,10 @@ export function useModules() {
     try {
       await api.deleteStep(flowId, stepId);
       dispatch({ type: "DELETE_STEP", flowId, stepId });
+      toast.success("Step deleted");
     } catch (error) {
       console.error(error);
+      toast.error(error.message || "Failed to delete step");
     }
   };
 
@@ -990,9 +1033,11 @@ export function useModules() {
       const newStep = await api.duplicateStep(flowId, stepId, name);
       const step = mapStepToTest(newStep);
       dispatch({ type: "ADD_STEP", flowId, step });
+      toast.success("Step duplicated");
       return step;
     } catch (error) {
       console.error("Failed to duplicate step:", error);
+      toast.error(error.message || "Failed to duplicate step");
       throw error;
     }
   };
@@ -1003,6 +1048,7 @@ export function useModules() {
       stepOrder: index + 1,
     }));
     await api.reorderSteps(flowId, steps);
+    toast.success("Step order saved");
   };
 
   const fetchSteps = async (flowId) => {

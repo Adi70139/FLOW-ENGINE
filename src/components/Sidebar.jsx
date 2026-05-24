@@ -9,6 +9,7 @@ import Modal from "./ui/modal/Modal";
 import Input from "./ui/input/Input";
 import Textarea from "./ui/textarea/Textarea";
 import Button from "./ui/button/Button";
+import { toast } from "./ui/toast/toast";
 import styles from "./Sidebar.module.css";
 
 function Sidebar() {
@@ -84,7 +85,7 @@ function Sidebar() {
       await executeBulkWithPolling("flow", ids, envIds);
       navigate("/report?type=bulk");
     } catch (err) {
-      alert("Bulk flow run failed: " + err.message);
+      toast.error("Bulk flow run failed: " + err.message);
     } finally {
       setBulkRunning(false);
     }
@@ -123,7 +124,7 @@ function Sidebar() {
     try {
       await duplicateFlow(selectedModuleId, flow.id, name);
     } catch (err) {
-      alert("Failed to duplicate flow: " + err.message);
+      toast.error("Failed to duplicate flow: " + err.message);
     }
   }
 
@@ -365,7 +366,7 @@ function CreateFlowModal({ moduleId, onClose }) {
       await addFlow(moduleId, name.trim(), desc.trim());
       onClose();
     } catch (err) {
-      alert("Failed to create flow: " + err.message);
+      toast.error("Failed to create flow: " + err.message);
     } finally {
       setLoading(false);
     }
@@ -411,7 +412,7 @@ function UpdateFlowModal({ moduleId, flow, onClose }) {
       const newName = name.trim();
       const newDesc = desc.trim();
       if (newName !== flow.name || newDesc !== (flow.description || "")) {
-        if (!newName) { alert("Flow name cannot be empty."); setLoading(false); return; }
+        if (!newName) { toast.error("Flow name cannot be empty."); setLoading(false); return; }
         await updateFlow(moduleId, flow.id, { name: newName, description: newDesc });
       }
       // Update env if changed
@@ -420,7 +421,7 @@ function UpdateFlowModal({ moduleId, flow, onClose }) {
       }
       onClose();
     } catch (err) {
-      alert("Failed to update flow: " + err.message);
+      toast.error("Failed to update flow: " + err.message);
     } finally {
       setLoading(false);
     }
@@ -480,7 +481,7 @@ function ImportFlowModal({ moduleId, onClose }) {
 
   async function handleImport() {
     if (!flowName || !file) {
-      alert("Please enter a flow name and select a file.");
+      toast.error("Please enter a flow name and select a file.");
       return;
     }
     setLoading(true);
@@ -488,7 +489,7 @@ function ImportFlowModal({ moduleId, onClose }) {
       await importFlow(moduleId, file, flowName, importType);
       onClose();
     } catch (err) {
-      alert("Import failed: " + err.message);
+      toast.error("Import failed: " + err.message);
     } finally {
       setLoading(false);
     }

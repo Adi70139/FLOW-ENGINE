@@ -7,6 +7,7 @@ import TestList from "./components/TestList";
 import RequestEditor from "./components/RequestEditor";
 import ResponseViewer from "./components/ResponseViewer";
 import Report from "./components/Report";
+import Toaster from "./components/ui/toast/Toaster";
 import { useModules } from "./context/CollectionContext";
 import styles from "./App.module.css";
 
@@ -50,6 +51,7 @@ export default function App() {
         <Route path="/module/:slug/:id" element={<ModuleLayout />} />
         <Route path="/report" element={<Report />} />
       </Routes>
+      <Toaster />
     </div>
   );
 }

@@ -297,6 +297,12 @@ export const api = {
     })),
   deleteModuleSchedule: (moduleId) =>
     request(`/schedule/modules/${moduleId}`, { method: "DELETE" }),
+  getModuleScheduleRuns: (moduleId, page = 0, size = 20) =>
+    request(`/schedule/modules/${moduleId}/runs?page=${page}&size=${size}`),
+  getLatestModuleScheduleRun: (moduleId) =>
+    request(`/schedule/modules/${moduleId}/runs/latest`),
+  getModuleScheduleRunDetail: (executionId) =>
+    request(`/schedule/modules/runs/${executionId}`),
 
   // ── Execution ─────────────────────────────────────────────────────────────
   executeFlow: (flowId, envId) =>

@@ -34,7 +34,6 @@ function ScheduleModal({ onClose }) {
       await updateSchedule(selectedModule.id, { time, timezone });
       onClose();
     } catch {
-      alert("Failed to save schedule");
     } finally {
       setLoading(false);
     }
@@ -47,7 +46,6 @@ function ScheduleModal({ onClose }) {
       await deleteSchedule(selectedModule.id);
       onClose();
     } catch {
-      alert("Failed to delete schedule");
     } finally {
       setLoading(false);
     }

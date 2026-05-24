@@ -17,7 +17,6 @@ function Navbar() {
   const isHomePage = location.pathname === "/";
   const isModulePage = location.pathname.startsWith("/module/");
   const environments = selectedModule?.environments || [];
-  const activeEnv = environments.find(e => e.id == selectedEnvId);
 
   return (
     <nav className={styles.navbar}>
@@ -59,6 +58,10 @@ function Navbar() {
             </button>
 
             <button className={styles.iconBtn} onClick={() => navigate("/report")} title="Reports">
+              <IconReport size={18} />
+            </button>
+
+            <button className={styles.iconBtn} onClick={() => navigate("/report?type=schedule")} title="Automation Analytics">
               <IconReport size={18} />
             </button>
 

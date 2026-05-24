@@ -12,6 +12,7 @@ import { IconStep, IconDelete, IconPlus, IconFlow, IconEdit, IconDuplicate } fro
 import FlowTrends from "./FlowTrends";
 import FlowHistory from "./FlowHistory";
 import FlowDependencyGraph from "./FlowDependencyGraph";
+import { toast } from "./ui/toast/toast";
 import styles from "./TestList.module.css";
 
 function TestList({ onAddTest }) {
@@ -100,7 +101,7 @@ function TestList({ onAddTest }) {
       setOrderChanged(false);
     } catch (err) {
       console.error("Failed to save step order:", err);
-      alert(`Unable to save step order: ${err.message || err}`);
+      toast.error(`Unable to save step order: ${err.message || err}`);
     } finally {
       setSavingOrder(false);
     }
@@ -125,7 +126,7 @@ function TestList({ onAddTest }) {
     try {
       await duplicateStep(selectedFlowId, step.id, name.trim());
     } catch (err) {
-      alert("Failed to duplicate step: " + err.message);
+      toast.error("Failed to duplicate step: " + err.message);
     }
   }
 
@@ -599,6 +600,7 @@ function UpdateStepModal({ step, flowId, updateStep, onClose }) {
         pollMaxAttempts: pollMaxAttempts,
         pollExpectedStatus: pollExpectedStatus,
       });
+      toast.success("Step updated");
       onClose();
     } catch (err) {
       setError(err.message || "Failed to update step");

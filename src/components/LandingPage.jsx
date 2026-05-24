@@ -8,6 +8,7 @@ import Modal from "./ui/modal/Modal";
 import Input from "./ui/input/Input";
 import Textarea from "./ui/textarea/Textarea";
 import { IconModule, IconPlus, IconPlay, IconDelete, IconFlow, IconStep, IconReport, IconDuplicate, IconEdit } from "./ui/icons/Icons";
+import { toast } from "./ui/toast/toast";
 import styles from "./LandingPage.module.css";
 
 const slugify = (text) =>
@@ -50,7 +51,7 @@ function LandingPage() {
       await executeBulkWithPolling("module", ids, envIds);
       navigate("/report?type=bulk");
     } catch (err) {
-      alert("Bulk execution failed: " + err.message);
+      toast.error("Bulk execution failed: " + err.message);
     }
   }
 
@@ -355,7 +356,7 @@ function CreateModuleModal({ onClose }) {
       onClose();
       navigate(`/module/${slug}/${newMod.id}`);
     } catch (err) {
-      alert("Failed to create module: " + err.message);
+      toast.error("Failed to create module: " + err.message);
     } finally {
       setLoading(false);
     }
@@ -402,7 +403,7 @@ function UpdateModuleModal({ module, onClose }) {
       await updateModule(module.id, { name: name.trim(), description: desc.trim() });
       onClose();
     } catch (err) {
-      alert("Failed to update module: " + err.message);
+      toast.error("Failed to update module: " + err.message);
     } finally {
       setLoading(false);
     }
@@ -446,7 +447,7 @@ function ImportPostmanModal({ onClose, defaultModuleId }) {
 
   async function handleImport() {
     if (!moduleId || !flowName || !file) {
-      alert("Please fill in all fields and select a file.");
+      toast.error("Please fill in all fields and select a file.");
       return;
     }
     setLoading(true);
@@ -454,7 +455,7 @@ function ImportPostmanModal({ onClose, defaultModuleId }) {
       await importFlow(moduleId, file, flowName, importType);
       onClose();
     } catch (err) {
-      alert("Import failed: " + err.message);
+      toast.error("Import failed: " + err.message);
     } finally {
       setLoading(false);
     }

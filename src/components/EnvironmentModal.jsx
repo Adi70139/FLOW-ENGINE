@@ -6,6 +6,7 @@ import Button from "./ui/button/Button";
 import KeyValueTable from "./KeyValueTable";
 import { IconPlus, IconDelete, IconModule } from "./ui/icons/Icons";
 import IconButton from "./ui/icon-button/IconButton";
+import { toast } from "./ui/toast/toast";
 import styles from "./EnvironmentModal.module.css";
 
 function EnvironmentModal({ onClose }) {
@@ -50,8 +51,8 @@ function EnvironmentModal({ onClose }) {
       setNewEnvName("");
       setNewEnvVariables([{ key: "", value: "", enabled: true }]);
       setActiveEnvId(newEnv.id);
-    } catch (e) {
-      alert("Failed to create environment");
+    } catch {
+      toast.error("Failed to create environment");
     }
   }
 
@@ -76,7 +77,7 @@ function EnvironmentModal({ onClose }) {
       onClose();
     } catch (e) {
       console.error("Failed to update variables:", e);
-      alert("Failed to save variables");
+      toast.error("Failed to save variables");
     } finally {
       setIsSaving(false);
     }
@@ -90,8 +91,8 @@ function EnvironmentModal({ onClose }) {
       if (activeEnvId === id) {
         setActiveEnvId(environments.find(e => e.id !== id)?.id || null);
       }
-    } catch (e) {
-      alert("Failed to delete environment");
+    } catch {
+      toast.error("Failed to delete environment");
     }
   }
 
