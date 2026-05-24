@@ -10,7 +10,7 @@ import KeyValueTable from "./KeyValueTable";
 import ParameterizeModal from "./ParameterizeModal";
 import EmptyState from "./ui/empty-state/EmptyState";
 import { parseCurl } from "../utils/parseCurl";
-import { api } from "../utils/api";
+import { api, sanitizeSkipCondition } from "../utils/api";
 import styles from "./RequestEditor.module.css";
 import { useEffect } from "react";
 
@@ -37,6 +37,7 @@ function RequestEditor() {
   const [generatingAssertions, setGeneratingAssertions] = useState(false);
   const [skipPrompt, setSkipPrompt] = useState("");
   const [skipConditionInput, setSkipConditionInput] = useState("");
+  const [skipConditionExplanation, setSkipConditionExplanation] = useState("");
   const [skipConditionError, setSkipConditionError] = useState("");
   const [generatingSkipCondition, setGeneratingSkipCondition] = useState(false);
 
@@ -81,6 +82,7 @@ function RequestEditor() {
       setAssertionError("");
       setSkipPrompt("");
       setSkipConditionInput(selectedStep.skipCondition ? JSON.stringify(selectedStep.skipCondition, null, 2) : "");
+      setSkipConditionExplanation("");
       setSkipConditionError("");
     }
   }, [selectedStepId, selectedStep?.assertions, selectedStep?.response, selectedStep?.skipCondition]);
@@ -136,8 +138,11 @@ function RequestEditor() {
 
   function handleSaveSkipCondition() {
     try {
-      const skipCondition = skipConditionInput.trim() ? JSON.parse(skipConditionInput) : null;
+      const skipCondition = skipConditionInput.trim()
+        ? sanitizeSkipCondition(JSON.parse(skipConditionInput))
+        : null;
       update({ skipCondition });
+      setSkipConditionInput(skipCondition ? JSON.stringify(skipCondition, null, 2) : "");
       setSkipConditionError("");
     } catch (err) {
       setSkipConditionError("Invalid skip condition JSON: " + err.message);
@@ -318,13 +323,15 @@ function RequestEditor() {
     setSkipConditionError("");
 
     try {
-      const skipCondition = await api.generateSkipCondition({
+      const generated = await api.generateSkipCondition({
         flowId: selectedFlowId,
-        targetStepOrder: selectedStep.stepOrder || 1,
+        targetStepOrder: parseInt(selectedStep.stepOrder, 10) || 1,
         description
       });
+      const skipCondition = sanitizeSkipCondition(generated);
 
       setSkipConditionInput(JSON.stringify(skipCondition, null, 2));
+      setSkipConditionExplanation(generated?.explanation || "");
     } catch (err) {
       setSkipConditionError(err.message || "Failed to generate skip condition.");
     } finally {
@@ -458,6 +465,13 @@ function RequestEditor() {
                 <div className={styles.assertionError}>{skipConditionError}</div>
               )}
             </div>
+
+            {skipConditionExplanation && (
+              <div className={styles.generatedExplanation}>
+                <span className={styles.generatedExplanationLabel}>Explanation</span>
+                <p>{skipConditionExplanation}</p>
+              </div>
+            )}
 
             <div className={styles.assertionRow}>
               <label>Skip Condition JSON</label>

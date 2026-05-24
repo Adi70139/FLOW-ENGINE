@@ -85,6 +85,31 @@ export function mapScheduleToApi(data) {
   };
 }
 
+export function sanitizeSkipCondition(skipCondition) {
+  if (!skipCondition) return null;
+
+  const source = skipCondition.skipCondition || skipCondition;
+  const conditions = Array.isArray(source.conditions)
+    ? source.conditions.map((condition) => {
+        const cleaned = {
+          path: condition.path,
+          operator: condition.operator,
+        };
+
+        if (Object.prototype.hasOwnProperty.call(condition, "value")) {
+          cleaned.value = condition.value;
+        }
+
+        return cleaned;
+      })
+    : [];
+
+  return {
+    logic: source.logic || "AND",
+    conditions,
+  };
+}
+
 /** Frontend Test shape → Backend Step body */
 export const mapTestToStep = (test) => ({
   name: test.name,
@@ -102,7 +127,7 @@ export const mapTestToStep = (test) => ({
       : null,
   bodyJson: test.payload || null,
   assertions: test.assertions || null,
-  skipCondition: test.skipCondition || null,
+  skipCondition: sanitizeSkipCondition(test.skipCondition),
   retryCount: typeof test.retryCount === "number" ? test.retryCount : (parseInt(test.retryCount) || 0),
   retryDelayMs: typeof test.retryDelayMs === "number" ? test.retryDelayMs : (parseInt(test.retryDelayMs) || 0),
   initialDelayMs: typeof test.initialDelayMs === "number" ? test.initialDelayMs : (parseInt(test.initialDelayMs) || 0),
@@ -148,9 +173,9 @@ export const mapStepToTest = (step) => {
     payload: step.bodyJson,
     assertions: step.assertionsJson ? JSON.parse(step.assertionsJson) : null,
     skipCondition: (() => {
-      if (step.skipCondition) return step.skipCondition;
+      if (step.skipCondition) return sanitizeSkipCondition(step.skipCondition);
       try {
-        return step.skipConditionJson ? JSON.parse(step.skipConditionJson) : null;
+        return step.skipConditionJson ? sanitizeSkipCondition(JSON.parse(step.skipConditionJson)) : null;
       } catch {
         return null;
       }
