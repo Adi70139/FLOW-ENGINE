@@ -692,6 +692,63 @@ export function useModules() {
         try {
           const pollStatus = await api.getFlowExecutionStatus(executionId);
           dispatch({ type: "EXECUTION_POLLING", id: flowId, pollData: pollStatus });
+
+          // Update step responses in real-time as each step completes
+          const pollSteps = pollStatus?.steps || pollStatus?.stepResults || [];
+          pollSteps.forEach(stepResult => {
+            const stepId = stepResult.stepId;
+            if (!stepId) return;
+            // Only update steps that have a resolved status (not pending/queued)
+            const stepStatus = (stepResult.status || "").toUpperCase();
+            if (stepStatus === "PENDING" || stepStatus === "QUEUED" || !stepStatus) return;
+
+            const responseBodyText = typeof stepResult.responseBody === 'object'
+              ? JSON.stringify(stepResult.responseBody)
+              : (stepResult.responseBody || "");
+
+            const stepResponse = {
+              status: stepResult.statusCode || (stepResult.status === "PASS" ? 200 : 500),
+              statusText: stepResult.status || (stepResult.success ? "OK" : "Failed"),
+              time: stepResult.durationMs || 0,
+              size: responseBodyText ? new Blob([responseBodyText]).size : 0,
+              body: responseBodyText,
+              headers: [],
+              resolvedUrl: stepResult.resolvedUrl || "",
+              resolvedHeaders: stepResult.resolvedHeadersJson ? (() => {
+                try {
+                  return typeof stepResult.resolvedHeadersJson === "string" 
+                    ? JSON.parse(stepResult.resolvedHeadersJson) 
+                    : stepResult.resolvedHeadersJson;
+                } catch {
+                  return {};
+                }
+              })() : {},
+              resolvedBody: stepResult.resolvedBodyJson ? (() => {
+                try {
+                  return typeof stepResult.resolvedBodyJson === "string" 
+                    ? JSON.parse(stepResult.resolvedBodyJson) 
+                    : stepResult.resolvedBodyJson;
+                } catch {
+                  return stepResult.resolvedBodyJson;
+                }
+              })() : null,
+              isFromFlowRun: true
+            };
+
+            try {
+              localStorage.setItem(`mr_auto_step_response_${stepId}`, JSON.stringify(stepResponse));
+            } catch (e) {
+              console.warn("Failed to save step response to localStorage:", e);
+            }
+
+            dispatch({
+              type: "UPDATE_STEP",
+              flowId: flowId,
+              stepId: stepId,
+              patch: { response: stepResponse }
+            });
+          });
+
           if (pollStatus.status === "PASS" || pollStatus.status === "FAIL" || pollStatus.status === "COMPLETED" || pollStatus.status === "ERROR") {
             isRunning = false;
             finalStatus = pollStatus;

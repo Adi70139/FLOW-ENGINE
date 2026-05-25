@@ -196,7 +196,9 @@ function setNestedValueByPath(obj, path, value) {
       
       rows.forEach(row => {
         if (row.parameterize && row.key !== "(raw)") {
-          setNestedValueByPath(obj, row.key, "");
+          // Extract the leaf key name from the path (e.g. "user.name" → "name", "items[0].id" → "id")
+          const leafKey = row.key.split(/[.\[\]]/).filter(Boolean).pop() || row.key;
+          setNestedValueByPath(obj, row.key, `{${leafKey}}`);
         }
       });
 
