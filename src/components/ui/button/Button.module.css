@@ -17,7 +17,7 @@
 .button:focus,
 .button:focus-visible {
   outline: none !important;
-  box-shadow: 0 0 0 2px var(--accent-glow) !important;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2) !important;
 }
 
 
@@ -67,7 +67,7 @@
   backdrop-filter: blur(8px);
 }
 .secondary::before {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(0, 0, 0, 0.03);
 }
 .secondary:hover {
   border-color: var(--border-hover);
@@ -79,7 +79,7 @@
   color: var(--text-secondary);
 }
 .ghost::before {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(0, 0, 0, 0.04);
 }
 .ghost:hover {
   color: var(--text-primary);

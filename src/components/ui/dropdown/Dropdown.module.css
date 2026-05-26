@@ -4,53 +4,39 @@
 }
 
 .control {
-  background: #1e293b;
-  border: 1px solid #334155;
-
+  background: var(--bg-input);
+  border: 1px solid var(--border);
   padding: 12px;
-
   border-radius: 8px;
-
   cursor: pointer;
-
-  color: white;
+  color: var(--text-primary);
+  transition: border-color 0.2s var(--ease);
 }
 
 .control:hover {
-  border-color: #475569;
+  border-color: var(--border-hover);
 }
 
 .menu {
   position: absolute;
-
   top: calc(100% + 8px);
-
   left: 0;
   right: 0;
-
-  background: #111827;
-
-  border: 1px solid #334155;
-
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
   border-radius: 10px;
-
   overflow: hidden;
-
   z-index: 100;
+  box-shadow: var(--glass-shadow);
 }
 
 .search {
   width: 100%;
-
   padding: 12px;
-
-  background: #0f172a;
-
+  background: var(--bg-input);
   border: none;
-  border-bottom: 1px solid #334155;
-
-  color: white;
-
+  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
   outline: none;
 }
 
@@ -61,18 +47,16 @@
 
 .option {
   padding: 12px;
-
   cursor: pointer;
-
-  transition: 0.2s;
+  color: var(--text-primary);
+  transition: background 0.2s var(--ease);
 }
 
 .option:hover {
-  background: #1e293b;
+  background: rgba(16, 185, 129, 0.06);
 }
 
 .empty {
   padding: 12px;
-
-  color: #94a3b8;
+  color: var(--text-muted);
 }

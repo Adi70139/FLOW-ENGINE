@@ -23,6 +23,8 @@
 
 .tab:hover {
   color: var(--text-secondary);
+  background: rgba(16, 185, 129, 0.06);
+  border-radius: 6px 6px 0 0;
 }
 
 .tab:focus,
@@ -59,21 +61,23 @@
 }
 
 .highlight {
-  background-color: var(--accent);
-  color: white;
-  border-radius: 4px 4px 0 0;
+  background-color: rgba(16, 185, 129, 0.12);
+  color: var(--accent-hover);
+  border-radius: 6px 6px 0 0;
+  font-weight: 600;
 }
 
 .highlight:hover {
-  background-color: var(--accent-hover);
-  color: white;
+  background-color: rgba(16, 185, 129, 0.18);
+  color: var(--accent-hover);
 }
 
 .highlight.active {
-  color: white;
+  background-color: rgba(16, 185, 129, 0.15);
+  color: var(--accent-hover);
 }
 
 .highlight.active::after {
-  background: white;
-  box-shadow: none;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
 }
