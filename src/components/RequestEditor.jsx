@@ -492,6 +492,7 @@ function RequestEditor() {
               placeholder={'{\n  "key": "value"\n}'}
               rows={10}
               mono
+              highlightParameterizedTokens
               label="Request Body (JSON)"
             />
             <div className={styles.bodyActions}>

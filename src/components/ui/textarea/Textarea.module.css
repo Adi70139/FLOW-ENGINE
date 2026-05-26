@@ -41,6 +41,63 @@
   box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
+.highlightContainer {
+  position: relative;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--glass-border);
+  background: var(--bg-input);
+  transition: all var(--duration) var(--ease);
+}
+
+.highlightContainer:hover {
+  border-color: var(--border-hover);
+}
+
+.highlightContainer:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.highlightLayer {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow: auto;
+  pointer-events: none;
+  min-height: 100%;
+}
+
+.overlayTextarea {
+  position: absolute;
+  inset: 0;
+  border: none;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--text-primary);
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.overlayTextarea:focus {
+  border: none;
+  box-shadow: none;
+}
+
+.overlayTextarea::placeholder {
+  color: transparent;
+}
+
+.paramToken {
+  color: var(--accent-hover);
+  font-weight: 600;
+}
+
 .mono {
   font-family: var(--font-mono);
   font-size: var(--text-sm);
