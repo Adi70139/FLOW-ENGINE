@@ -36,6 +36,8 @@ function RequestEditor() {
   const [assertionResponseBody, setAssertionResponseBody] = useState("");
   const [assertionError, setAssertionError] = useState("");
   const [generatingAssertions, setGeneratingAssertions] = useState(false);
+  const [schemaValidationError, setSchemaValidationError] = useState("");
+  const [generatingSchemaValidation, setGeneratingSchemaValidation] = useState(false);
   const [skipPrompt, setSkipPrompt] = useState("");
   const [skipConditionInput, setSkipConditionInput] = useState("");
   const [skipConditionExplanation, setSkipConditionExplanation] = useState("");
@@ -81,6 +83,7 @@ function RequestEditor() {
       setAssertionResponseBody(selectedStep.response?.body || "");
       setAssertionPrompt("");
       setAssertionError("");
+      setSchemaValidationError("");
       setSkipPrompt("");
       setSkipConditionInput(selectedStep.skipCondition ? JSON.stringify(selectedStep.skipCondition, null, 2) : "");
       setSkipConditionExplanation("");
@@ -316,6 +319,83 @@ function RequestEditor() {
       toast.error(err.message || "Failed to generate assertions");
     } finally {
       setGeneratingAssertions(false);
+    }
+  }
+
+  function extractSchemaFromAssertionsPayload(payload) {
+    if (!payload || typeof payload !== "object") return null;
+
+    if (payload.schema && typeof payload.schema === "object") {
+      return payload.schema;
+    }
+
+    if (payload.assertions?.schema && typeof payload.assertions.schema === "object") {
+      return payload.assertions.schema;
+    }
+
+    if (payload.data?.schema && typeof payload.data.schema === "object") {
+      return payload.data.schema;
+    }
+
+    if (payload.assertionsJson && typeof payload.assertionsJson === "string") {
+      try {
+        const parsed = JSON.parse(payload.assertionsJson);
+        return parsed?.schema && typeof parsed.schema === "object" ? parsed.schema : null;
+      } catch {
+        return null;
+      }
+    }
+
+    return null;
+  }
+
+  function extractSchemaCriticalFromAssertionsPayload(payload) {
+    if (!payload || typeof payload !== "object") return undefined;
+
+    if (typeof payload.schemaCritical === "boolean") return payload.schemaCritical;
+    if (typeof payload.assertions?.schemaCritical === "boolean") return payload.assertions.schemaCritical;
+    if (typeof payload.data?.schemaCritical === "boolean") return payload.data.schemaCritical;
+
+    if (payload.assertionsJson && typeof payload.assertionsJson === "string") {
+      try {
+        const parsed = JSON.parse(payload.assertionsJson);
+        if (typeof parsed?.schemaCritical === "boolean") return parsed.schemaCritical;
+      } catch {
+        return undefined;
+      }
+    }
+
+    return undefined;
+  }
+
+  async function handleGenerateSchemaValidation() {
+    if (!selectedStep?.id) return;
+
+    setGeneratingSchemaValidation(true);
+    setSchemaValidationError("");
+
+    try {
+      await api.generateSchemaValidation(selectedStep.id);
+      const currentAssertions = await api.getStepAssertions(selectedStep.id);
+      const schema = extractSchemaFromAssertionsPayload(currentAssertions);
+
+      if (!schema) {
+        throw new Error("Schema was generated but not returned by assertions endpoint.");
+      }
+
+      setLocalSchemaInput(JSON.stringify(schema, null, 2));
+      const schemaCritical = extractSchemaCriticalFromAssertionsPayload(currentAssertions);
+      if (typeof schemaCritical === "boolean") {
+        setLocalSchemaCritical(schemaCritical);
+      }
+      setHasChanges(true);
+      toast.success("Schema validation generated");
+    } catch (err) {
+      const errorMessage = err.message || "Failed to generate schema validation.";
+      setSchemaValidationError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setGeneratingSchemaValidation(false);
     }
   }
 
@@ -628,25 +708,35 @@ function RequestEditor() {
               />
             </div>
             <div className={styles.assertionRow}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div className={styles.schemaHeader}>
                 <label>JSON Schema Assertion</label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer', color: 'var(--text-secondary)' }}>
-                  <input
-                    type="checkbox"
-                    checked={localSchemaCritical}
-                    onChange={(e) => {
-                      const checked = e.target.checked;
-                      if (!checked) {
-                        const confirmUncheck = window.confirm("Are you sure? Unchecking this means the run will not fail in case of a schema mismatch.");
-                        if (!confirmUncheck) return;
-                      }
-                      setLocalSchemaCritical(checked);
-                      setHasChanges(true);
-                    }}
-                    style={{ accentColor: 'var(--accent)' }}
-                  />
-                  Critical Assertion
-                </label>
+                <div className={styles.schemaHeaderControls}>
+                  <Button
+                    size="small"
+                    variant="secondary"
+                    onClick={handleGenerateSchemaValidation}
+                    disabled={generatingSchemaValidation}
+                  >
+                    {generatingSchemaValidation ? "Generating..." : "Generate Schema Validation"}
+                  </Button>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer', color: 'var(--text-secondary)' }}>
+                    <input
+                      type="checkbox"
+                      checked={localSchemaCritical}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        if (!checked) {
+                          const confirmUncheck = window.confirm("Are you sure? Unchecking this means the run will not fail in case of a schema mismatch.");
+                          if (!confirmUncheck) return;
+                        }
+                        setLocalSchemaCritical(checked);
+                        setHasChanges(true);
+                      }}
+                      style={{ accentColor: 'var(--accent)' }}
+                    />
+                    Critical Assertion
+                  </label>
+                </div>
               </div>
               <Textarea
                 placeholder="Enter JSON Schema to validate response body"
@@ -658,6 +748,9 @@ function RequestEditor() {
                   setHasChanges(true);
                 }}
               />
+              {schemaValidationError && (
+                <div className={styles.assertionError}>{schemaValidationError}</div>
+              )}
             </div>
             <div className={styles.assertionRow}>
               <label>Field Assertions</label>

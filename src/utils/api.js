@@ -370,6 +370,24 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ stepId, description }),
     }),
+  generateSchemaValidation: async (stepId) => {
+    try {
+      return await request(`/assettions/schema/${stepId}`, {
+        method: "POST",
+      });
+    } catch {
+      return request(`/assertions/schema/${stepId}`, {
+        method: "POST",
+      });
+    }
+  },
+  getStepAssertions: async (stepId) => {
+    try {
+      return await request(`/assertions/${stepId}`);
+    } catch {
+      return request(`/assettions/${stepId}`);
+    }
+  },
   generateSkipCondition: ({ flowId, targetStepOrder, description }) =>
     request("/skip-condition/generate", {
       method: "POST",

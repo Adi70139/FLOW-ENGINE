@@ -223,6 +223,19 @@
   color: var(--text-primary);
 }
 
+.schemaHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.schemaHeaderControls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .actionRow {
   display: flex;
   justify-content: flex-end;
