@@ -48,20 +48,16 @@ function Navbar() {
                   <option key={env.id} value={env.id}>{env.name}</option>
                 ))}
               </select>
-              <button className={styles.iconBtn} onClick={() => setShowEnvModal(true)} title="Manage Environments">
+              <button className={styles.iconBtn} onClick={() => setShowEnvModal(true)} data-tooltip="Manage Environments" aria-label="Manage Environments">
                 <IconPlus size={14} />
               </button>
             </div>
 
-            <button className={styles.iconBtn} onClick={() => setShowScheduleModal(true)} title="Module Schedule">
+            <button className={styles.iconBtn} onClick={() => setShowScheduleModal(true)} data-tooltip="Module Schedule" aria-label="Module Schedule">
               <IconSchedule size={18} />
             </button>
 
-            <button className={styles.iconBtn} onClick={() => navigate("/report")} title="Reports">
-              <IconReport size={18} />
-            </button>
-
-            <button className={styles.iconBtn} onClick={() => navigate("/report?type=schedule")} title="Automation Analytics">
+            <button className={styles.iconBtn} onClick={() => navigate("/report")} data-tooltip="Reports" aria-label="Reports">
               <IconReport size={18} />
             </button>
 

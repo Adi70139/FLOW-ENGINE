@@ -8,6 +8,7 @@ import RequestEditor from "./components/RequestEditor";
 import ResponseViewer from "./components/ResponseViewer";
 import Report from "./components/Report";
 import Toaster from "./components/ui/toast/Toaster";
+import ConfirmHost from "./components/ui/confirm/ConfirmHost";
 import { useModules } from "./context/CollectionContext";
 import styles from "./App.module.css";
 
@@ -52,6 +53,7 @@ export default function App() {
         <Route path="/report" element={<Report />} />
       </Routes>
       <Toaster />
+      <ConfirmHost />
     </div>
   );
 }

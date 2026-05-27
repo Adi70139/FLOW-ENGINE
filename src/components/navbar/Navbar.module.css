@@ -104,6 +104,7 @@
 }
 
 .iconBtn {
+  position: relative;
   background: transparent;
   border: none;
   color: var(--text-muted);
@@ -119,6 +120,30 @@
 .iconBtn:hover {
   color: var(--accent);
   background: rgba(16, 185, 129, 0.1);
+}
+
+.iconBtn[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #0f172a;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.iconBtn[data-tooltip]:hover::after {
+  opacity: 1;
 }
 
 .divider {

@@ -12,6 +12,7 @@ import EmptyState from "./ui/empty-state/EmptyState";
 import { parseCurl } from "../utils/parseCurl";
 import { api, sanitizeSkipCondition } from "../utils/api";
 import { toast } from "./ui/toast/toast";
+import { confirm } from "./ui/confirm/confirm";
 import styles from "./RequestEditor.module.css";
 import { useEffect } from "react";
 import MethodsTab from "./MethodsTab";
@@ -725,11 +726,16 @@ function RequestEditor() {
                     <input
                       type="checkbox"
                       checked={localSchemaCritical}
-                      onChange={(e) => {
+                      onChange={async (e) => {
                         const checked = e.target.checked;
                         if (!checked) {
-                          const confirmUncheck = window.confirm("Are you sure? Unchecking this means the run will not fail in case of a schema mismatch.");
-                          if (!confirmUncheck) return;
+                          const ok = await confirm({
+                            title: "Disable critical schema assertion?",
+                            message: "The run will NOT fail in case of a schema mismatch.",
+                            confirmLabel: "Disable",
+                            variant: "danger",
+                          });
+                          if (!ok) return;
                         }
                         setLocalSchemaCritical(checked);
                         setHasChanges(true);

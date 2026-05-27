@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { api } from "../utils/api";
 import { toast } from "./ui/toast/toast";
+import { confirm } from "./ui/confirm/confirm";
 import Button from "./ui/button/Button";
 import Input from "./ui/input/Input";
 import Textarea from "./ui/textarea/Textarea";
@@ -42,9 +43,56 @@ function MethodsTab({ flowId, stepId }) {
   const [attachParameterBindings, setAttachParameterBindings] = useState({});
   const [attachingToStep, setAttachingToStep] = useState(false);
 
+  // Step methods already attached to this step
+  const [stepMethods, setStepMethods] = useState([]);
+  const [detachingStepMethodId, setDetachingStepMethodId] = useState(null);
+
   useEffect(() => {
     fetchMethods();
-  }, []);
+    fetchStepMethods();
+  }, [flowId, stepId]);
+
+  async function fetchStepMethods() {
+    if (!flowId || !stepId) return;
+    try {
+      const data = await api.getStepMethods(flowId, stepId);
+      setStepMethods(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.warn("[MethodsTab] getStepMethods failed:", err);
+      setStepMethods([]);
+    }
+  }
+
+  function getAttachedStepMethod(methodId) {
+    return (
+      stepMethods.find(
+        (sm) => sm?.methodId === methodId || sm?.method?.id === methodId
+      ) || null
+    );
+  }
+
+  function getStepMethodId(attached) {
+    if (!attached) return null;
+    return attached.stepMethodId ?? attached.id ?? null;
+  }
+
+  function getStepMethodBindings(attached) {
+    if (!attached) return {};
+    if (attached.parameterBindings && typeof attached.parameterBindings === "object") {
+      return attached.parameterBindings;
+    }
+    return parseBindingsJson(attached.parameterBindingsJson);
+  }
+
+  function parseBindingsJson(json) {
+    if (!json) return {};
+    if (typeof json === "object") return json;
+    try {
+      return JSON.parse(json) || {};
+    } catch {
+      return {};
+    }
+  }
 
   async function fetchMethods() {
     setLoading(true);
@@ -164,9 +212,13 @@ function MethodsTab({ flowId, stepId }) {
   }
 
   async function handleDiscardMethod(methodId) {
-    if (!window.confirm("Discard this draft method? This cannot be undone.")) {
-      return;
-    }
+    const ok = await confirm({
+      title: "Discard draft method?",
+      message: "This will permanently delete the draft method. This cannot be undone.",
+      confirmLabel: "Discard",
+      variant: "danger",
+    });
+    if (!ok) return;
 
     setDiscardingMethodId(methodId);
     try {
@@ -187,12 +239,16 @@ function MethodsTab({ flowId, stepId }) {
 
   function startAttachMethod(method) {
     setAttachingMethodId(method.id);
-    
+
+    // Prefill from existing attachment if present
+    const existing = getAttachedStepMethod(method.id);
+    const existingBindings = getStepMethodBindings(existing);
+
     // Initialize parameter bindings for all parameters
     const bindings = {};
     if (Array.isArray(method.parameters)) {
       method.parameters.forEach((param) => {
-        bindings[param.name] = "";
+        bindings[param.name] = existingBindings[param.name] || "";
       });
     }
     setAttachParameterBindings(bindings);
@@ -218,17 +274,45 @@ function MethodsTab({ flowId, stepId }) {
 
     setAttachingToStep(true);
     try {
+      // If already attached, detach first (re-attach with updated bindings)
+      const existing = getAttachedStepMethod(attachingMethodId);
+      const existingStepMethodId = getStepMethodId(existing);
+      if (existingStepMethodId) {
+        await api.detachMethodFromStep(existingStepMethodId);
+      }
+
       await api.attachMethodToStep(flowId, stepId, {
         methodId: attachingMethodId,
         parameterBindings: attachParameterBindings,
       });
-      
+
       cancelAttachMethod();
-      toast.success("Method attached to step successfully");
+      await fetchStepMethods();
+      toast.success(existing ? "Parameters updated" : "Method attached to step successfully");
     } catch (err) {
       toast.error("Failed to attach method: " + err.message);
     } finally {
       setAttachingToStep(false);
+    }
+  }
+
+  async function handleDetachStepMethod(stepMethodId) {
+    const ok = await confirm({
+      title: "Remove method from step?",
+      message: "This method will no longer run before this step.",
+      confirmLabel: "Remove",
+      variant: "danger",
+    });
+    if (!ok) return;
+    setDetachingStepMethodId(stepMethodId);
+    try {
+      await api.detachMethodFromStep(stepMethodId);
+      await fetchStepMethods();
+      toast.success("Method removed from step");
+    } catch (err) {
+      toast.error("Failed to remove method: " + err.message);
+    } finally {
+      setDetachingStepMethodId(null);
     }
   }
 
@@ -333,14 +417,21 @@ function MethodsTab({ flowId, stepId }) {
           </div>
         ) : (
           <div className={styles.methodsList}>
-            {methods.map((method) => (
-              <div key={method.id} className={styles.methodCard}>
+            {methods.map((method) => {
+              const attached = getAttachedStepMethod(method.id);
+              return (
+              <div key={method.id} className={`${styles.methodCard} ${attached ? styles.methodCardAttached : ""}`}>
                 <div className={styles.methodHeader}>
                   <div className={styles.methodTitleWrap}>
                     <h4>{method.name}</h4>
                     <span className={styles.methodType}>
                       {method.type === "BUILTIN" ? "Built-in" : method.global ? "Saved" : "Draft"}
                     </span>
+                    {attached && (
+                      <span className={styles.attachedBadge} title="Attached to this step">
+                        ✓ Attached
+                      </span>
+                    )}
                   </div>
                   <span className={styles.methodId}>ID: {method.id}</span>
                 </div>
@@ -404,8 +495,23 @@ function MethodsTab({ flowId, stepId }) {
                       attachingMethodId === method.id ? cancelAttachMethod() : startAttachMethod(method)
                     }
                   >
-                    {attachingMethodId === method.id ? "Cancel" : "Attach to Step"}
+                    {attachingMethodId === method.id
+                      ? "Cancel"
+                      : attached
+                      ? "Edit Parameters"
+                      : "Attach to Step"}
                   </Button>
+
+                  {attached && (
+                    <Button
+                      variant="danger"
+                      size="small"
+                      onClick={() => handleDetachStepMethod(getStepMethodId(attached))}
+                      disabled={detachingStepMethodId === getStepMethodId(attached)}
+                    >
+                      {detachingStepMethodId === getStepMethodId(attached) ? "Removing..." : "Remove from Step"}
+                    </Button>
+                  )}
                 </div>
 
                 {editingMethodId === method.id && (
@@ -552,13 +658,16 @@ function MethodsTab({ flowId, stepId }) {
                         onClick={handleAttachMethodToStep}
                         disabled={attachingToStep}
                       >
-                        {attachingToStep ? "Attaching..." : "Attach to Step"}
+                        {attachingToStep
+                          ? (getAttachedStepMethod(method.id) ? "Updating..." : "Attaching...")
+                          : (getAttachedStepMethod(method.id) ? "Update Parameters" : "Attach to Step")}
                       </Button>
                     </div>
                   </div>
                 )}
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
