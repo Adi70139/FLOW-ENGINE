@@ -394,6 +394,50 @@ export const api = {
       body: JSON.stringify({ flowId, targetStepOrder, description }),
     }),
 
+  // ── Custom Methods ───────────────────────────────────────────────────────
+  getAllMethods: () =>
+    request("/methods"),
+  getAllMethodsIncludingDrafts: () =>
+    request("/methods/all"),
+  getMethodDetail: (methodId) =>
+    request(`/methods/${methodId}`),
+  updateMethod: (methodId, data) =>
+    request(`/methods/${methodId}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+  saveMethod: (methodId) =>
+    request(`/methods/${methodId}/save`, {
+      method: "POST",
+    }),
+  discardMethod: (methodId) =>
+    request(`/methods/${methodId}/discard`, {
+      method: "DELETE",
+    }),
+  deleteMethod: (methodId) =>
+    request(`/methods/${methodId}`, {
+      method: "DELETE",
+    }),
+  generateMethod: (data) =>
+    request("/methods/generate", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  testMethod: (methodId, parameters) =>
+    request("/methods/test", {
+      method: "POST",
+      body: JSON.stringify({ methodId, parameters }),
+    }),
+  attachMethodToStep: (flowId, stepId, data) =>
+    request(`/flows/${flowId}/steps/${stepId}/methods`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  getStepMethods: (flowId, stepId) =>
+    request(`/flows/${flowId}/steps/${stepId}/methods`),
+  detachMethodFromStep: (stepMethodId) =>
+    request(`/step-methods/${stepMethodId}`, { method: "DELETE" }),
+
   // ── Trends, History, & Graph ─────────────────────────────────────────────
   getStepTrends: (flowId) => request(`/api/flows/${flowId}/trends`),
   getFlowHistory: (flowId) => request(`/api/flows/${flowId}/history`),

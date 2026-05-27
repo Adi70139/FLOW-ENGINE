@@ -1,0 +1,296 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.section h3 {
+  margin: 0;
+  font-size: 16px;
+  color: var(--text-primary);
+}
+
+.methodsList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 16px;
+}
+
+.methodCard {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(16, 185, 129, 0.04);
+}
+
+.methodHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.methodTitleWrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.methodHeader h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.methodType {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent-hover);
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  border-radius: 999px;
+  padding: 2px 6px;
+}
+
+.methodId {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: rgba(0, 0, 0, 0.05);
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.methodDescription {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.parameters {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.parameters strong {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--text-primary);
+}
+
+.parameters ul {
+  margin: 0;
+  padding-left: 16px;
+}
+
+.parameters li {
+  margin: 4px 0;
+  line-height: 1.4;
+}
+
+.parameters code {
+  background: rgba(0, 0, 0, 0.05);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.required {
+  color: var(--status-error);
+  margin-left: 2px;
+}
+
+.paramDesc {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.methodActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.editForm {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.editActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.attachForm {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bindingsList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bindingRow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bindingLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.bindingHint {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.attachActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.loading,
+.emptyState {
+  padding: 32px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.parametersList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.parameterRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto auto;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+@media (max-width: 1100px) {
+  .parameterRow {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.checkboxLabel input {
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+
+.actionButtons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-family: var(--font-main);
+  font-size: 13px;
+  outline: none;
+  transition: all var(--duration) var(--ease);
+}
+
+.select:hover {
+  border-color: var(--border-hover);
+}
+
+.select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
+.testResult {
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-top: 12px;
+}
+
+.testResult h4 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.testResult pre {
+  margin: 0;
+  font-size: 11px;
+  overflow-x: auto;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  line-height: 1.4;
+}

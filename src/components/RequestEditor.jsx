@@ -14,13 +14,14 @@ import { api, sanitizeSkipCondition } from "../utils/api";
 import { toast } from "./ui/toast/toast";
 import styles from "./RequestEditor.module.css";
 import { useEffect } from "react";
+import MethodsTab from "./MethodsTab";
 
 const REQUEST_TABS = [
   { id: "headers", label: "Headers" },
   { id: "body", label: "Body" },
   { id: "skip", label: "Skip Condition" },
   { id: "assertions", label: "Assertions" },
-  { id: "extract", label: "Tests/Extract" },
+  { id: "methods", label: "Custom/Built-in Methods" },
   { id: "curl", label: "Import cURL", highlight: true },
 ];
 
@@ -779,18 +780,8 @@ function RequestEditor() {
           </div>
         )}
 
-        {activeTab === "extract" && (
-          <div className={styles.extractSection}>
-            <p className={styles.tabDescription}>
-              Extract values from the response JSON to use in subsequent requests as <code>{`{{variableName}}`}</code>.
-            </p>
-            <KeyValueTable
-              rows={selectedStep.extract || []}
-              onChange={(extract) => update({ extract })}
-              keyPlaceholder="Variable Name (e.g. authToken)"
-              valuePlaceholder="JSON Path (e.g. data.token)"
-            />
-          </div>
+        {activeTab === "methods" && (
+          <MethodsTab flowId={selectedFlowId} stepId={selectedStepId} />
         )}
 
         {activeTab === "curl" && (
