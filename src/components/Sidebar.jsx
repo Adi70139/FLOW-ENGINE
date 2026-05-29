@@ -495,9 +495,24 @@ function ImportFlowModal({ moduleId, onClose }) {
     }
   }
 
-  const typeLabel = importType === "swagger" ? "Swagger/OpenAPI file" : "Postman Collection file";
-  const acceptTypes = importType === "swagger" ? ".json,.yaml,.yml" : ".json";
-  const modalTitle = importType === "swagger" ? "Import Swagger/OpenAPI" : "Import Postman Collection";
+  const typeLabel =
+    importType === "swagger"
+      ? "Swagger/OpenAPI file"
+      : importType === "har"
+      ? "HAR file"
+      : "Postman Collection file";
+  const acceptTypes =
+    importType === "swagger"
+      ? ".json,.yaml,.yml"
+      : importType === "har"
+      ? ".har,.json"
+      : ".json";
+  const modalTitle =
+    importType === "swagger"
+      ? "Import Swagger/OpenAPI"
+      : importType === "har"
+      ? "Import HAR File"
+      : "Import Postman Collection";
 
   return (
     <Modal title={modalTitle} onClose={onClose} size="sm">
@@ -516,6 +531,13 @@ function ImportFlowModal({ moduleId, onClose }) {
             onClick={() => setImportType("swagger")}
           >
             Swagger/OpenAPI
+          </button>
+          <button
+            type="button"
+            className={`${styles.toggleButton} ${importType === "har" ? styles.toggleActive : ""}`}
+            onClick={() => setImportType("har")}
+          >
+            HAR
           </button>
         </div>
 

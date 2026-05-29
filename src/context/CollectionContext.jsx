@@ -590,7 +590,12 @@ export function useModules() {
   const importFlow = async (moduleId, file, flowName, importType = "postman") => {
     dispatch({ type: "FETCH_START" });
     try {
-      const apiMethod = importType === "swagger" ? api.importSwagger : api.importPostman;
+      const apiMethod =
+        importType === "swagger"
+          ? api.importSwagger
+          : importType === "har"
+          ? api.importHar
+          : api.importPostman;
       const newFlow = await apiMethod(file, flowName, moduleId);
       dispatch({ type: "ADD_FLOW", moduleId, flow: newFlow });
       toast.success("Flow imported");

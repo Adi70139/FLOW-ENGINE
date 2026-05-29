@@ -477,4 +477,21 @@ export const api = {
       return data;
     });
   },
+
+  /** POST /import/har  multipart: { file, flowName, moduleId } */
+  importHar: (file, flowName, moduleId) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("flowName", flowName);
+    formData.append("moduleId", moduleId);
+
+    return fetch(`${BASE_URL}/import/har`, {
+      method: "POST",
+      body: formData,
+    }).then(async (res) => {
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Import failed");
+      return data;
+    });
+  },
 };
