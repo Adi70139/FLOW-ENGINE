@@ -7,8 +7,9 @@ import IconButton from "./ui/icon-button/IconButton";
 import Modal from "./ui/modal/Modal";
 import Input from "./ui/input/Input";
 import Textarea from "./ui/textarea/Textarea";
-import { IconModule, IconPlus, IconPlay, IconDelete, IconFlow, IconStep, IconReport, IconDuplicate, IconEdit } from "./ui/icons/Icons";
+import { IconModule, IconPlus, IconPlay, IconDelete, IconFlow, IconStep, IconReport, IconDuplicate, IconEdit, IconRecord } from "./ui/icons/Icons";
 import { toast } from "./ui/toast/toast";
+import RecordFlowModal from "./RecordFlowModal";
 import styles from "./LandingPage.module.css";
 
 const slugify = (text) =>
@@ -29,6 +30,7 @@ function LandingPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [editingModule, setEditingModule] = useState(null);
   const [showImport, setShowImport] = useState(false);
+  const [showRecord, setShowRecord] = useState(false);
   const [importTargetModuleId, setImportTargetModuleId] = useState(null);
   const [selectedEnvs, setSelectedEnvs] = useState({});
 
@@ -68,6 +70,15 @@ function LandingPage() {
             </Button>
             <Button variant="secondary" onClick={() => setShowImport(true)} icon={<IconPlus size={18} style={{ transform: 'rotate(45deg)' }} />}>
               Import Collection
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => setShowRecord(true)}
+              icon={<IconRecord size={14} />}
+              className={styles.recordCta}
+            >
+              Record Flow
+              <span className={styles.newBadge}>NEW</span>
             </Button>
           </div>
         </div>
@@ -171,6 +182,9 @@ function LandingPage() {
           onClose={() => setShowImport(false)}
           defaultModuleId={importTargetModuleId}
         />
+      )}
+      {showRecord && (
+        <RecordFlowModal onClose={() => setShowRecord(false)} />
       )}
     </div>
   );

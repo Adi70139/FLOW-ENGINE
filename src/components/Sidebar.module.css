@@ -309,3 +309,26 @@
   accent-color: var(--accent);
   flex-shrink: 0;
 }
+
+.recordBtn {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(249, 115, 22, 0.15)) !important;
+  color: #ef4444 !important;
+  border: 1px solid rgba(239, 68, 68, 0.4) !important;
+  position: relative;
+}
+
+.recordBtn:hover {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.25), rgba(249, 115, 22, 0.25)) !important;
+  color: #fca5a5 !important;
+}
+
+.newPill {
+  margin-left: 4px;
+  padding: 1px 5px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  background: #ef4444;
+  color: #fff;
+  border-radius: 3px;
+}

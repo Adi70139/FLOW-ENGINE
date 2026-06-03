@@ -494,4 +494,41 @@ export const api = {
       return data;
     });
   },
+
+  // ── Browser Recording ─────────────────────────────────────────────────────
+  /** POST /record/start  body: { url, moduleId, flowName, port?, attach?, include?, chromePath?, redactedHeaders?, flowId? } */
+  startRecording: (body) =>
+    request(`/record/start`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  /** GET /record/{sessionId} */
+  getRecordingStatus: (sessionId) => request(`/record/${sessionId}`),
+
+  /** GET /record */
+  listRecordings: () => request(`/record`),
+
+  /** POST /record/{sessionId}/stop  → FlowDetailedDTO */
+  stopAndImportRecording: (sessionId) =>
+    request(`/record/${sessionId}/stop`, { method: "POST" }),
+
+  /** POST /record/{sessionId}/preview  → RecordedRequest[] */
+  stopAndPreviewRecording: (sessionId) =>
+    request(`/record/${sessionId}/preview`, { method: "POST" }),
+
+  /** POST /record/{sessionId}/import?moduleId=&flowName= → FlowDetailedDTO */
+  importRecordingPreview: (sessionId, { moduleId, flowName, flowId } = {}) => {
+    const params = new URLSearchParams();
+    if (moduleId != null) params.append("moduleId", moduleId);
+    if (flowName) params.append("flowName", flowName);
+    if (flowId != null) params.append("flowId", flowId);
+    return request(`/record/${sessionId}/import?${params.toString()}`, {
+      method: "POST",
+    });
+  },
+
+  /** DELETE /record/{sessionId} */
+  discardRecording: (sessionId) =>
+    request(`/record/${sessionId}`, { method: "DELETE" }),
 };

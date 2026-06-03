@@ -4,12 +4,13 @@ import { useModules } from "../context/CollectionContext";
 
 import Badge from "./ui/badge/Badge";
 import IconButton from "./ui/icon-button/IconButton";
-import { IconFlow, IconPlay, IconDelete, IconChevron, IconPlus, IconDuplicate, IconReport, IconEdit, IconPlus as IconImport } from "./ui/icons/Icons";
+import { IconFlow, IconPlay, IconDelete, IconChevron, IconPlus, IconDuplicate, IconReport, IconEdit, IconPlus as IconImport, IconRecord } from "./ui/icons/Icons";
 import Modal from "./ui/modal/Modal";
 import Input from "./ui/input/Input";
 import Textarea from "./ui/textarea/Textarea";
 import Button from "./ui/button/Button";
 import { toast } from "./ui/toast/toast";
+import RecordFlowModal from "./RecordFlowModal";
 import styles from "./Sidebar.module.css";
 
 function Sidebar() {
@@ -48,6 +49,7 @@ function Sidebar() {
 
   const [editingFlow, setEditingFlow] = useState(null);
   const [showImport, setShowImport] = useState(false);
+  const [showRecord, setShowRecord] = useState(false);
   const [showCreateFlow, setShowCreateFlow] = useState(false);
   const [selectedFlows, setSelectedFlows] = useState(new Set());
   const [bulkRunning, setBulkRunning] = useState(false);
@@ -151,6 +153,14 @@ function Sidebar() {
         <div className={styles.sectionHeader}>
           <span className={styles.sectionTitle}>Flows</span>
           <div className={styles.sectionActions}>
+            <button
+              className={`${styles.sectionBtn} ${styles.recordBtn}`}
+              onClick={() => setShowRecord(true)}
+              title="Record API calls from a browser session"
+            >
+              <IconRecord size={12} />
+              <span>Record</span>
+            </button>
             <button
               className={styles.sectionBtn}
               onClick={() => setShowImport(true)}
@@ -341,6 +351,12 @@ function Sidebar() {
         <ImportFlowModal
           moduleId={selectedModuleId}
           onClose={() => setShowImport(false)}
+        />
+      )}
+      {showRecord && (
+        <RecordFlowModal
+          defaultModuleId={selectedModuleId}
+          onClose={() => setShowRecord(false)}
         />
       )}
       {showCreateFlow && (

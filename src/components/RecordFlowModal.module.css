@@ -1,0 +1,142 @@
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary, #cbd5e1);
+}
+
+.select,
+.input {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--bg-input, #1e293b);
+  border: 1px solid var(--border, #334155);
+  color: var(--text-primary, #f1f5f9);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.select:focus,
+.input:focus {
+  border-color: var(--accent, #22c55e);
+}
+
+.helpText {
+  font-size: 12px;
+  color: var(--text-tertiary, #94a3b8);
+  margin: 0;
+}
+
+.advancedToggle {
+  background: none;
+  border: none;
+  color: var(--accent, #22c55e);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.advancedToggle:hover {
+  text-decoration: underline;
+}
+
+.advancedSection {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  border: 1px dashed var(--border, #334155);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-secondary, #cbd5e1);
+}
+
+.recordingStatus {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.08), rgba(239, 68, 68, 0.02));
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  text-align: center;
+}
+
+.recordingHeader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #ef4444;
+}
+
+.pulseDot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #ef4444;
+  box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6);
+  animation: pulse 1.4s infinite;
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+  70% { box-shadow: 0 0 0 12px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+.countBig {
+  font-size: 48px;
+  font-weight: 700;
+  color: var(--text-primary, #f1f5f9);
+  line-height: 1;
+}
+
+.countLabel {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-tertiary, #94a3b8);
+}
+
+.sessionMeta {
+  font-size: 12px;
+  color: var(--text-tertiary, #94a3b8);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  word-break: break-all;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
