@@ -1,5 +1,7 @@
 //const BASE_URL = "https://api-orchestration.onrender.com";
-const BASE_URL = "http://localhost:8060";
+const BASE_URL =
+  import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") ||
+  "http://localhost:8060";
 
 async function request(path, options = {}) {
   const url = `${BASE_URL}${path}`;
