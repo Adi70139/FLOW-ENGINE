@@ -128,6 +128,13 @@ export const mapTestToStep = (test) => ({
       )
       : null,
   bodyJson: test.payload || null,
+  inheritBodyFromPreviousStep: !!test.inheritBodyFromPreviousStep,
+  bodySourceStepId:
+    test.inheritBodyFromPreviousStep && test.bodySourceStepId
+      ? (typeof test.bodySourceStepId === "number"
+          ? test.bodySourceStepId
+          : parseInt(test.bodySourceStepId) || null)
+      : null,
   assertions: test.assertions || null,
   skipCondition: sanitizeSkipCondition(test.skipCondition),
   retryCount: typeof test.retryCount === "number" ? test.retryCount : (parseInt(test.retryCount) || 0),
@@ -173,6 +180,8 @@ export const mapStepToTest = (step) => {
       }
     })(),
     payload: step.bodyJson,
+    inheritBodyFromPreviousStep: !!step.inheritBodyFromPreviousStep,
+    bodySourceStepId: step.bodySourceStepId ?? null,
     assertions: step.assertionsJson ? JSON.parse(step.assertionsJson) : null,
     skipCondition: (() => {
       if (step.skipCondition) return sanitizeSkipCondition(step.skipCondition);

@@ -27,7 +27,7 @@ const REQUEST_TABS = [
 ];
 
 function RequestEditor() {
-  const { selectedStep, selectedFlowId, selectedStepId, updateStep, selectedEnv, dispatch } =
+  const { selectedStep, selectedFlow, selectedFlowId, selectedStepId, updateStep, selectedEnv, dispatch } =
     useModules();
 
   const [activeTab, setActiveTab] = useState("headers");
@@ -488,14 +488,114 @@ function RequestEditor() {
 
         {activeTab === "body" && (
           <div className={styles.bodySection}>
+            {(() => {
+              const allSteps = selectedFlow?.tests || [];
+              const currentOrder =
+                typeof selectedStep.stepOrder === "number"
+                  ? selectedStep.stepOrder
+                  : Number.MAX_SAFE_INTEGER;
+              const previousSteps = allSteps
+                .filter(
+                  (s) =>
+                    s.id !== selectedStep.id &&
+                    typeof s.stepOrder === "number" &&
+                    s.stepOrder < currentOrder
+                )
+                .sort((a, b) => a.stepOrder - b.stepOrder);
+
+              const inherit = !!selectedStep.inheritBodyFromPreviousStep;
+              const sourceId = selectedStep.bodySourceStepId ?? "";
+              const sourceExists =
+                sourceId !== "" &&
+                previousSteps.some((s) => String(s.id) === String(sourceId));
+
+              return (
+                <div className={styles.inheritBody}>
+                  <label className={styles.inheritToggle}>
+                    <input
+                      type="checkbox"
+                      checked={inherit}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        const patch = { inheritBodyFromPreviousStep: checked };
+                        if (!checked) {
+                          patch.bodySourceStepId = null;
+                        } else if (!sourceId && previousSteps.length > 0) {
+                          patch.bodySourceStepId = previousSteps[previousSteps.length - 1].id;
+                        }
+                        update(patch);
+                      }}
+                      disabled={previousSteps.length === 0}
+                    />
+                    <span>Inherit body from a previous step's response</span>
+                  </label>
+
+                  {inherit && (
+                    <>
+                      <div className={styles.inheritRow}>
+                        <label className={styles.inheritLabel}>
+                          Source step
+                        </label>
+                        <select
+                          className={styles.inheritSelect}
+                          value={sourceId}
+                          onChange={(e) =>
+                            update({
+                              bodySourceStepId: e.target.value
+                                ? parseInt(e.target.value, 10)
+                                : null,
+                            })
+                          }
+                          disabled={previousSteps.length === 0}
+                        >
+                          <option value="">— Select a previous step —</option>
+                          {previousSteps.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              Step {s.stepOrder}: {s.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <p className={styles.inheritHint}>
+                        The selected step's response body will be used as the
+                        base body for this request. Fields you define below are
+                        merged on top — add new fields or override existing ones.
+                      </p>
+                      {sourceId && !sourceExists && (
+                        <div className={styles.inheritWarn}>
+                          The previously selected source step is no longer
+                          available. Pick another step.
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {previousSteps.length === 0 && (
+                    <p className={styles.inheritHint}>
+                      No earlier steps exist in this flow. Add a step before
+                      this one to enable body inheritance.
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
+
             <Textarea
               value={selectedStep.payload || ""}
               onChange={(e) => update({ payload: e.target.value })}
-              placeholder={'{\n  "key": "value"\n}'}
+              placeholder={
+                selectedStep.inheritBodyFromPreviousStep
+                  ? '{\n  "// Add/override fields on inherited body": ""\n}'
+                  : '{\n  "key": "value"\n}'
+              }
               rows={10}
               mono
               highlightParameterizedTokens
-              label="Request Body (JSON)"
+              label={
+                selectedStep.inheritBodyFromPreviousStep
+                  ? "Body Overrides (JSON) — merged onto inherited body"
+                  : "Request Body (JSON)"
+              }
             />
             <div className={styles.bodyActions}>
               <Button
