@@ -9,6 +9,7 @@ import ResponseViewer from "./components/ResponseViewer";
 import Report from "./components/Report";
 import Toaster from "./components/ui/toast/Toaster";
 import ConfirmHost from "./components/ui/confirm/ConfirmHost";
+import ChatBot from "./components/ChatBot";
 import { useModules } from "./context/CollectionContext";
 import styles from "./App.module.css";
 
@@ -54,6 +55,7 @@ export default function App() {
       </Routes>
       <Toaster />
       <ConfirmHost />
+      <ChatBot />
     </div>
   );
 }

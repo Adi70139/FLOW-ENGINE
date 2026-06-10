@@ -542,4 +542,12 @@ export const api = {
   /** DELETE /record/{sessionId} */
   discardRecording: (sessionId) =>
     request(`/record/${sessionId}`, { method: "DELETE" }),
+
+  // ── Application Assistant ─────────────────────────────────────────────────
+  /** POST /assistant/chat → AssistantChatResponse */
+  assistantChat: ({ message, executeActions = false, history = [] } = {}) =>
+    request(`/assistant/chat`, {
+      method: "POST",
+      body: JSON.stringify({ message, executeActions, history }),
+    }),
 };
