@@ -25,6 +25,47 @@ function formatBytes(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+// Friendly retry-after formatter: "8.1099s" → "a few seconds", "75s" → "about 1 minute".
+function formatRetryAfter(rawValue, rawUnit) {
+  const num = Number(rawValue);
+  if (!Number.isFinite(num) || num <= 0) return "";
+  const unit = (rawUnit || "s").toLowerCase();
+  let seconds = num;
+  if (unit.startsWith("ms")) seconds = num / 1000;
+  else if (unit.startsWith("m") && !unit.startsWith("ms")) seconds = num * 60;
+  else if (unit.startsWith("h")) seconds = num * 3600;
+
+  if (seconds < 10) return "a few seconds";
+  if (seconds < 60) return `about ${Math.ceil(seconds)} seconds`;
+  const minutes = Math.ceil(seconds / 60);
+  if (minutes === 1) return "about 1 minute";
+  if (minutes < 60) return `about ${minutes} minutes`;
+  const hours = Math.ceil(minutes / 60);
+  return hours === 1 ? "about 1 hour" : `about ${hours} hours`;
+}
+
+// Detects rate-limit messages from the backend (e.g. Groq / OpenAI style errors
+// surfaced through the assistant) and rewrites them into a short user-friendly note.
+function friendlyAssistantText(text) {
+  if (!text || typeof text !== "string") return text;
+  const lower = text.toLowerCase();
+  const looksRateLimited =
+    lower.includes("rate_limit_exceeded") ||
+    lower.includes("rate limit reached") ||
+    lower.includes("rate limit exceeded") ||
+    lower.includes("too many requests");
+  if (!looksRateLimited) return text;
+
+  const retryMatch =
+    text.match(/try again in\s+([\d.]+)\s*(ms|s|sec(?:onds?)?|m|min(?:utes?)?|h|hours?)/i) ||
+    text.match(/retry\s+after\s+([\d.]+)\s*(ms|s|sec(?:onds?)?|m|min(?:utes?)?|h|hours?)/i);
+
+  const wait = retryMatch ? formatRetryAfter(retryMatch[1], retryMatch[2]) : "";
+  return wait
+    ? `Assistant is facing heavy traffic right now. Please try again in ${wait}.`
+    : "Assistant is facing heavy traffic right now. Please try again in a moment.";
+}
+
 function loadHistory() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -121,13 +162,18 @@ function ChatBot() {
         history: buildHistoryPayload(),
       });
 
+      const rawReply = res?.reply || "(no reply)";
+      const friendlyReply = friendlyAssistantText(rawReply);
+      const wasRateLimited = friendlyReply !== rawReply;
+
       const assistantMsg = {
         role: "assistant",
-        content: res?.reply || "(no reply)",
+        content: friendlyReply,
         actions: Array.isArray(res?.actions) ? res.actions : [],
         confirmationRequired: !!res?.confirmationRequired,
         executed: !!(execute ?? executeActions),
         prompt: trimmed,
+        error: wasRateLimited,
         ts: Date.now(),
       };
 
@@ -138,14 +184,16 @@ function ChatBot() {
       }
       if (!open) setUnread(true);
     } catch (err) {
+      const friendly =
+        friendlyAssistantText(err?.message) || err?.message || "The assistant request failed.";
       const errMsg = {
         role: "assistant",
-        content: err?.message || "The assistant request failed.",
+        content: friendly,
         error: true,
         ts: Date.now(),
       };
       setMessages((prev) => [...prev, errMsg]);
-      toast.error(err?.message || "Assistant request failed");
+      toast.error(friendly);
     } finally {
       setSending(false);
     }
