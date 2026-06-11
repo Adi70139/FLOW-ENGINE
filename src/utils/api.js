@@ -550,4 +550,36 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ message, executeActions, history }),
     }),
+
+  /**
+   * POST /assistant/upload (multipart) → FlowDetailedDTO
+   * Auto-detects type (Postman / Swagger / HAR) on the backend.
+   * `filterDomain` and `flowId` are only used for HAR imports.
+   */
+  assistantUpload: ({ file, moduleId, flowName, flowId, filterDomain } = {}) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("moduleId", String(moduleId));
+    formData.append("flowName", flowName);
+    if (flowId != null && flowId !== "") formData.append("flowId", String(flowId));
+    if (filterDomain) formData.append("filterDomain", filterDomain);
+
+    return fetch(`${BASE_URL}/assistant/upload`, {
+      method: "POST",
+      body: formData,
+    }).then(async (res) => {
+      const ct = res.headers.get("content-type") || "";
+      const data = ct.includes("application/json")
+        ? await res.json().catch(() => ({}))
+        : await res.text().catch(() => "");
+      if (!res.ok) {
+        const msg =
+          (data && typeof data === "object" && (data.error || data.message)) ||
+          (typeof data === "string" && data) ||
+          `Upload failed (${res.status})`;
+        throw new Error(msg);
+      }
+      return data;
+    });
+  },
 };

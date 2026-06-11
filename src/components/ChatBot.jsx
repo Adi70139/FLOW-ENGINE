@@ -1,10 +1,29 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../utils/api";
+import { useModules } from "../context/CollectionContext";
 import { toast } from "./ui/toast/toast";
 import styles from "./ChatBot.module.css";
 
 const STORAGE_KEY = "mr_auto_assistant_history_v1";
 const MAX_HISTORY = 20;
+const MAX_FILE_BYTES = 25 * 1024 * 1024; // 25 MB safety cap
+const ACCEPTED_FILE_TYPES = ".json,.yaml,.yml,.har,application/json,application/x-yaml,text/yaml";
+
+function isHarFile(file) {
+  return !!file && (file.name || "").toLowerCase().endsWith(".har");
+}
+
+function stripExtension(name = "") {
+  const idx = name.lastIndexOf(".");
+  return idx > 0 ? name.slice(0, idx) : name;
+}
+
+function formatBytes(bytes) {
+  if (bytes == null) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 function loadHistory() {
   try {
@@ -27,6 +46,7 @@ function saveHistory(messages) {
 }
 
 function ChatBot() {
+  const { modules = [], selectedModuleId, dispatch } = useModules();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState(() => loadHistory());
   const [input, setInput] = useState("");
@@ -34,8 +54,18 @@ function ChatBot() {
   const [executeActions, setExecuteActions] = useState(false);
   const [pendingConfirmFor, setPendingConfirmFor] = useState(null);
   const [unread, setUnread] = useState(false);
+
+  // ── Attachment / upload state ──
+  const [attachedFile, setAttachedFile] = useState(null);
+  const [importModuleId, setImportModuleId] = useState("");
+  const [importFlowName, setImportFlowName] = useState("");
+  const [filterDomain, setFilterDomain] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+
   const scrollerRef = useRef(null);
   const inputRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     saveHistory(messages);
@@ -53,6 +83,18 @@ function ChatBot() {
       setTimeout(() => inputRef.current?.focus(), 0);
     }
   }, [open]);
+
+  // Default the import module to the currently selected module (if any) when attaching.
+  useEffect(() => {
+    if (!attachedFile) return;
+    if (importModuleId) return;
+    if (selectedModuleId) {
+      setImportModuleId(String(selectedModuleId));
+    } else if (modules.length > 0) {
+      setImportModuleId(String(modules[0].id));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attachedFile]);
 
   function buildHistoryPayload(extra = []) {
     return [...messages, ...extra]
@@ -111,12 +153,20 @@ function ChatBot() {
 
   function handleSubmit(e) {
     e.preventDefault();
+    if (attachedFile) {
+      handleUpload();
+      return;
+    }
     sendMessage(input);
   }
 
   function handleKeyDown(e) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
+      if (attachedFile) {
+        handleUpload();
+        return;
+      }
       sendMessage(input);
     }
   }
@@ -134,6 +184,130 @@ function ChatBot() {
       localStorage.removeItem(STORAGE_KEY);
     } catch {
       /* ignore */
+    }
+  }
+
+  function handleAttachClick() {
+    fileInputRef.current?.click();
+  }
+
+  function handleFileSelected(e) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-selecting the same file
+    if (!file) return;
+    if (file.size > MAX_FILE_BYTES) {
+      setUploadError(`File is too large (${formatBytes(file.size)}). Max ${formatBytes(MAX_FILE_BYTES)}.`);
+      return;
+    }
+    setUploadError("");
+    setAttachedFile(file);
+    setImportFlowName(stripExtension(file.name) || "Imported Flow");
+    if (!isHarFile(file)) setFilterDomain("");
+  }
+
+  function clearAttachment() {
+    setAttachedFile(null);
+    setImportFlowName("");
+    setFilterDomain("");
+    setUploadError("");
+  }
+
+  async function handleUpload() {
+    if (!attachedFile || uploading) return;
+    if (!importModuleId) {
+      setUploadError("Pick a module to import into.");
+      return;
+    }
+    if (!importFlowName.trim()) {
+      setUploadError("Flow name is required.");
+      return;
+    }
+
+    const file = attachedFile;
+    const flowName = importFlowName.trim();
+    const moduleId = importModuleId;
+    const moduleName = modules.find((m) => String(m.id) === String(moduleId))?.name || `module ${moduleId}`;
+    const domain = isHarFile(file) ? filterDomain.trim() : "";
+
+    const userMsg = {
+      role: "user",
+      content: `Uploaded ${file.name} (${formatBytes(file.size)}) — import into "${moduleName}" as flow "${flowName}".`,
+      ts: Date.now(),
+    };
+    setMessages((prev) => [...prev, userMsg]);
+    setUploading(true);
+    setUploadError("");
+
+    try {
+      const flow = await api.assistantUpload({
+        file,
+        moduleId,
+        flowName,
+        filterDomain: domain || undefined,
+      });
+
+      // Keep the sidebar in sync so the new flow shows up immediately.
+      if (flow && dispatch) {
+        dispatch({ type: "ADD_FLOW", moduleId, flow });
+      }
+
+      const assistantMsg = {
+        role: "assistant",
+        content: `Imported "${flow?.name || flowName}" into module "${moduleName}".`,
+        actions: [
+          {
+            action: "assistant.upload",
+            arguments: {
+              moduleId: Number(moduleId),
+              flowName,
+              fileName: file.name,
+              ...(domain ? { filterDomain: domain } : {}),
+            },
+            status: "success",
+            result: flow
+              ? {
+                  flowId: flow.id,
+                  name: flow.name,
+                  steps: flow.steps?.length ?? flow.stepCount,
+                }
+              : undefined,
+          },
+        ],
+        executed: true,
+        ts: Date.now(),
+      };
+      setMessages((prev) => [...prev, assistantMsg]);
+      clearAttachment();
+      toast.success(`Imported "${flow?.name || flowName}"`);
+      if (!open) setUnread(true);
+    } catch (err) {
+      const message = err?.message || "Upload failed.";
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: message,
+          actions: [
+            {
+              action: "assistant.upload",
+              arguments: {
+                moduleId: Number(moduleId),
+                flowName,
+                fileName: file.name,
+              },
+              status: "failed",
+              error: message,
+            },
+          ],
+          executed: true,
+          error: true,
+          ts: Date.now(),
+        },
+      ]);
+      setUploadError(message);
+      toast.error(message);
+    } finally {
+      setUploading(false);
     }
   }
 
@@ -282,6 +456,86 @@ function ChatBot() {
           )}
 
           <form className={styles.composer} onSubmit={handleSubmit}>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={ACCEPTED_FILE_TYPES}
+              onChange={handleFileSelected}
+              style={{ display: "none" }}
+            />
+
+            {attachedFile && (
+              <div className={styles.attachmentCard}>
+                <div className={styles.attachmentHead}>
+                  <span className={styles.attachmentIcon}>📎</span>
+                  <div className={styles.attachmentMeta}>
+                    <div className={styles.attachmentName} title={attachedFile.name}>{attachedFile.name}</div>
+                    <div className={styles.attachmentSize}>{formatBytes(attachedFile.size)}</div>
+                  </div>
+                  <button
+                    type="button"
+                    className={styles.attachmentRemove}
+                    onClick={clearAttachment}
+                    disabled={uploading}
+                    aria-label="Remove attachment"
+                    title="Remove attachment"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                <div className={styles.importRow}>
+                  <label className={styles.importField}>
+                    <span>Module</span>
+                    <select
+                      value={importModuleId}
+                      onChange={(e) => setImportModuleId(e.target.value)}
+                      disabled={uploading || modules.length === 0}
+                    >
+                      {modules.length === 0 && <option value="">No modules</option>}
+                      {modules.length > 0 && !importModuleId && (
+                        <option value="">— Select module —</option>
+                      )}
+                      {modules.map((m) => (
+                        <option key={m.id} value={m.id}>{m.name}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className={styles.importField}>
+                    <span>Flow name</span>
+                    <input
+                      type="text"
+                      value={importFlowName}
+                      onChange={(e) => setImportFlowName(e.target.value)}
+                      placeholder="e.g. Smoke Tests"
+                      disabled={uploading}
+                    />
+                  </label>
+                </div>
+
+                {isHarFile(attachedFile) && (
+                  <label className={styles.importField}>
+                    <span>Filter domain <em>(optional, HAR only)</em></span>
+                    <input
+                      type="text"
+                      value={filterDomain}
+                      onChange={(e) => setFilterDomain(e.target.value)}
+                      placeholder="e.g. api.example.com"
+                      disabled={uploading}
+                    />
+                  </label>
+                )}
+
+                <div className={styles.attachmentHint}>
+                  Type auto-detected from file (Postman / Swagger / HAR).
+                </div>
+
+                {uploadError && (
+                  <div className={styles.attachmentError}>{uploadError}</div>
+                )}
+              </div>
+            )}
+
             <label className={styles.executeToggle} title="When on, the assistant performs actions immediately. When off, it asks for confirmation first.">
               <input
                 type="checkbox"
@@ -303,6 +557,15 @@ function ChatBot() {
             <div className={styles.composerActions}>
               <button
                 type="button"
+                className={styles.attachBtn}
+                onClick={handleAttachClick}
+                disabled={sending || uploading}
+                title="Attach a Postman / Swagger / HAR file"
+              >
+                📎 Attach
+              </button>
+              <button
+                type="button"
                 className={styles.clearBtn}
                 onClick={handleClear}
                 disabled={sending || messages.length === 0}
@@ -313,9 +576,15 @@ function ChatBot() {
               <button
                 type="submit"
                 className={styles.sendBtn}
-                disabled={sending || !input.trim()}
+                disabled={
+                  sending ||
+                  uploading ||
+                  (attachedFile
+                    ? !importModuleId || !importFlowName.trim()
+                    : !input.trim())
+                }
               >
-                {sending ? "…" : "Send"}
+                {uploading ? "…" : sending ? "…" : attachedFile ? "Upload" : "Send"}
               </button>
             </div>
           </form>

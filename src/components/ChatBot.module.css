@@ -440,6 +440,177 @@
   gap: 8px;
 }
 
+.attachBtn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.attachBtn:hover:not(:disabled) {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(16, 185, 129, 0.06);
+}
+
+.attachBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── Attachment card ── */
+.attachmentCard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  background: rgba(16, 185, 129, 0.04);
+  border-radius: 10px;
+}
+
+.attachmentHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.attachmentIcon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.attachmentMeta {
+  flex: 1;
+  min-width: 0;
+}
+
+.attachmentName {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.attachmentSize {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.attachmentRemove {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: none;
+  background: rgba(248, 113, 113, 0.1);
+  color: #f87171;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.attachmentRemove:hover:not(:disabled) {
+  background: rgba(248, 113, 113, 0.2);
+}
+
+.attachmentRemove:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.importRow {
+  display: flex;
+  gap: 8px;
+}
+
+.importField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.importField select,
+.importField input {
+  width: 100%;
+  background: var(--bg-surface, #14171c);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-family: inherit;
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: normal;
+  transition: border-color 0.15s;
+}
+
+.importField select:focus,
+.importField input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.importField select:disabled,
+.importField input:disabled {
+  opacity: 0.6;
+}
+
+.attachmentError {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.08);
+  border: 1px solid rgba(248, 113, 113, 0.2);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 11px;
+}
+
+.attachmentHint {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 0 2px;
+}
+
+.uploadBtn {
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.15s;
+}
+
+.uploadBtn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.uploadBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .clearBtn {
   background: transparent;
   border: 1px solid var(--border);
