@@ -253,6 +253,24 @@ export const api = {
   clearFlowEnv: (id) =>
     request(`/flows/${id}/environment`, { method: "DELETE" }),
 
+  // ── UI Automation ────────────────────────────────────────────────────────
+  /**
+   * POST /ui-automation/generate → UIAutomationResult
+   * Required: url, steps, moduleName, flowName. Optional: authHeader, cookiesJson.
+   */
+  generateUiAutomation: ({ url, steps, moduleName, flowName, authHeader, cookiesJson } = {}) =>
+    request(`/ui-automation/generate`, {
+      method: "POST",
+      body: JSON.stringify({
+        url,
+        steps,
+        moduleName,
+        flowName,
+        ...(authHeader ? { authHeader } : {}),
+        ...(cookiesJson ? { cookiesJson } : {}),
+      }),
+    }),
+
   // ── Steps ─────────────────────────────────────────────────────────────────
   getSteps: (flowId) => request(`/flows/${flowId}/steps`),
   getStep: (flowId, stepId) => request(`/flows/${flowId}/steps/${stepId}`),

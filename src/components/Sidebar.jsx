@@ -11,6 +11,7 @@ import Textarea from "./ui/textarea/Textarea";
 import Button from "./ui/button/Button";
 import { toast } from "./ui/toast/toast";
 import RecordFlowModal from "./RecordFlowModal";
+import CreateUIFlowModal from "./CreateUIFlowModal";
 import styles from "./Sidebar.module.css";
 
 function Sidebar() {
@@ -51,6 +52,7 @@ function Sidebar() {
   const [showImport, setShowImport] = useState(false);
   const [showRecord, setShowRecord] = useState(false);
   const [showCreateFlow, setShowCreateFlow] = useState(false);
+  const [showCreateUiFlow, setShowCreateUiFlow] = useState(false);
   const [selectedFlows, setSelectedFlows] = useState(new Set());
   const [bulkRunning, setBulkRunning] = useState(false);
 
@@ -168,6 +170,14 @@ function Sidebar() {
             >
               <IconImport size={14} />
               <span>Import</span>
+            </button>
+            <button
+              className={`${styles.sectionBtn} ${styles.uiBtn}`}
+              onClick={() => setShowCreateUiFlow(true)}
+              title="Generate a UI automation flow from natural-language steps"
+            >
+              <span aria-hidden="true" style={{ fontSize: 12 }}>🖥️</span>
+              <span>UI</span>
             </button>
             <button
               className={styles.sectionBtn}
@@ -363,6 +373,12 @@ function Sidebar() {
         <CreateFlowModal
           moduleId={selectedModuleId}
           onClose={() => setShowCreateFlow(false)}
+        />
+      )}
+      {showCreateUiFlow && (
+        <CreateUIFlowModal
+          defaultModuleId={selectedModuleId}
+          onClose={() => setShowCreateUiFlow(false)}
         />
       )}
     </div>

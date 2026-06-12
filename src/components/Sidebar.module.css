@@ -22,7 +22,8 @@
 .sectionHeader {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 8px;
   margin-bottom: 8px;
   padding: 0 4px;
 }
@@ -33,18 +34,24 @@
   text-transform: uppercase;
   letter-spacing: 1.5px;
   color: var(--text-muted);
+  padding-top: 5px;
+  white-space: nowrap;
 }
 
 .sectionActions {
   display: flex;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .sectionBtn {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 10px;
+  padding: 4px 8px;
   font-size: 11px;
   font-weight: 600;
   color: var(--text-secondary);
@@ -54,6 +61,8 @@
   cursor: pointer;
   transition: all 0.2s var(--ease);
   font-family: var(--font-main);
+  white-space: nowrap;
+  line-height: 1;
 }
 
 .sectionBtn:hover {

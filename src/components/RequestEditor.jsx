@@ -436,14 +436,23 @@ function RequestEditor() {
   const hasSkipConditionChanges = skipConditionInput.trim() !== savedSkipConditionInput.trim();
   const canSaveSkipCondition = skipConditionInput.trim().length > 0 && hasSkipConditionChanges;
   const responseBodyForGenerator = assertionResponseBody || selectedStep.response?.body || "";
+  const isUiFlow = selectedFlow?.flowType === "UI";
+  const visibleTabs = isUiFlow
+    ? REQUEST_TABS.filter((t) => t.id === "body")
+    : REQUEST_TABS;
+  const effectiveActiveTab = visibleTabs.some((t) => t.id === activeTab)
+    ? activeTab
+    : visibleTabs[0]?.id || "headers";
   return (
     <div className={styles.editor}>
-      <div className={styles.methodRow}>
-        <MethodSelect
-          value={selectedStep.method || "GET"}
-          onChange={(m) => update({ method: m })}
-        />
-      </div>
+      {!isUiFlow && (
+        <div className={styles.methodRow}>
+          <MethodSelect
+            value={selectedStep.method || "GET"}
+            onChange={(m) => update({ method: m })}
+          />
+        </div>
+      )}
 
       <div className={styles.urlBar}>
         <div className={styles.urlInput}>
@@ -474,10 +483,10 @@ function RequestEditor() {
         </div>
       )}
 
-      <Tabs tabs={REQUEST_TABS} activeTab={activeTab} onChange={setActiveTab} />
+      <Tabs tabs={visibleTabs} activeTab={effectiveActiveTab} onChange={setActiveTab} />
 
       <div className={styles.tabContent}>
-        {activeTab === "headers" && (
+        {effectiveActiveTab === "headers" && (
           <KeyValueTable
             rows={selectedStep.headers || []}
             onChange={(headers) => update({ headers })}
@@ -486,9 +495,9 @@ function RequestEditor() {
           />
         )}
 
-        {activeTab === "body" && (
+        {effectiveActiveTab === "body" && (
           <div className={styles.bodySection}>
-            {(() => {
+            {!isUiFlow && (() => {
               const allSteps = selectedFlow?.tests || [];
               const currentOrder =
                 typeof selectedStep.stepOrder === "number"
@@ -627,7 +636,7 @@ function RequestEditor() {
           </div>
         )}
 
-        {activeTab === "skip" && (
+        {effectiveActiveTab === "skip" && (
           <div className={styles.assertionsSection}>
             <div className={styles.generateAssertions}>
               <div className={styles.generateHeader}>
@@ -688,7 +697,7 @@ function RequestEditor() {
           </div>
         )}
 
-        {activeTab === "assertions" && (
+        {effectiveActiveTab === "assertions" && (
           <div className={styles.assertionsSection}>
             <div className={styles.generateAssertions}>
               <div className={styles.generateHeader}>
@@ -886,11 +895,11 @@ function RequestEditor() {
           </div>
         )}
 
-        {activeTab === "methods" && (
+        {effectiveActiveTab === "methods" && (
           <MethodsTab flowId={selectedFlowId} stepId={selectedStepId} />
         )}
 
-        {activeTab === "curl" && (
+        {effectiveActiveTab === "curl" && (
           <div className={styles.curlSection}>
             <Textarea
               value={curlInput}

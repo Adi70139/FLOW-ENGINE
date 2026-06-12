@@ -139,6 +139,32 @@ function TestList({ onAddTest }) {
     setShowCreateModal(true);
   }
 
+  function handleDownloadScript() {
+    const script = selectedFlow?.playwrightScript;
+    if (!script) {
+      toast.error("No Playwright script available for this flow.");
+      return;
+    }
+    const safeName = (selectedFlow.name || "ui-flow")
+      .replace(/[^a-zA-Z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "") || "UiFlow";
+    const fileName = `${safeName}.java`;
+    try {
+      const blob = new Blob([script], { type: "text/x-java-source;charset=utf-8" });
+      const href = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = href;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(href);
+      toast.success(`Downloaded ${fileName}`);
+    } catch (err) {
+      toast.error("Failed to download script: " + (err.message || err));
+    }
+  }
+
   useEffect(() => {
     setOrderChanged(false);
   }, [selectedFlowId]);
@@ -166,13 +192,31 @@ function TestList({ onAddTest }) {
     <div className={styles.container}>
       <div className={styles.header}>
         <div style={{ display: "flex", flexDirection: "column", gap: "14px", width: "100%" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "10px" }}>
             <h3 className={styles.title} style={{ color: "var(--text-primary)", fontSize: "15px", fontWeight: "800", textTransform: "none", letterSpacing: "normal" }}>
               {selectedFlow.name}
             </h3>
-            <span style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-              {activeTab === "steps" ? `${tests.length} steps` : activeTab}
-            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              {selectedFlow.flowType === "UI" && (
+                <Button
+                  size="small"
+                  variant="secondary"
+                  onClick={handleDownloadScript}
+                  disabled={!selectedFlow.playwrightScript}
+                  title={
+                    selectedFlow.playwrightScript
+                      ? "Download the generated Playwright Java script"
+                      : "No Playwright script available for this flow yet"
+                  }
+                  icon="⬇"
+                >
+                  Download Script
+                </Button>
+              )}
+              <span style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                {activeTab === "steps" ? `${tests.length} steps` : activeTab}
+              </span>
+            </div>
           </div>
           <Tabs tabs={PANE_TABS} activeTab={activeTab} onChange={setActiveTab} />
         </div>
