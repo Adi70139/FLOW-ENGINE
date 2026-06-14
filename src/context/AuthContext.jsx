@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
-import { api, getAuthToken, setAuthToken, onUnauthorized } from "../utils/api";
+import { api, getAuthToken, setAuthToken, onUnauthorized, getApiBaseUrl } from "../utils/api";
 
 const AuthContext = createContext(null);
 
@@ -90,9 +90,18 @@ export function AuthProvider({ children }) {
 
   const loginWithGoogle = useCallback(async (redirectTo) => {
     const res = await api.googleLoginUrl(redirectTo);
-    const url = res?.url || res?.authorizationUrl || (typeof res === "string" ? res : null);
-    if (!url) throw new Error("Backend did not return a Google login URL");
-    window.location.assign(url);
+    const raw = res?.url || res?.authorizationUrl || (typeof res === "string" ? res : null);
+    if (!raw) throw new Error("Backend did not return a Google login URL");
+    // If the backend returned a relative path (e.g. "/oauth2/authorization/google"),
+    // resolve it against the API origin — NOT the frontend origin.
+    let target = raw;
+    if (/^https?:\/\//i.test(raw)) {
+      target = raw;
+    } else {
+      const base = getApiBaseUrl();
+      target = `${base}${raw.startsWith("/") ? "" : "/"}${raw}`;
+    }
+    window.location.href = target;
   }, []);
 
   const logout = useCallback(() => {

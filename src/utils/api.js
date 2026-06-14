@@ -3,6 +3,10 @@ const BASE_URL =
   import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") ||
   "http://localhost:8060";
 
+export function getApiBaseUrl() {
+  return BASE_URL;
+}
+
 // ─── Auth token storage ──────────────────────────────────────────────────────
 const TOKEN_STORAGE_KEY = "mr_auto_auth_token";
 const authListeners = new Set();
