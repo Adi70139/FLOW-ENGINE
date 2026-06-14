@@ -7,6 +7,7 @@
   background: var(--bg-surface);
   backdrop-filter: blur(var(--glass-blur));
   border-bottom: 1px solid var(--border);
+  position: relative;
   z-index: 100;
   flex-shrink: 0;
 }
@@ -151,4 +152,119 @@
   height: 24px;
   background: var(--border);
   margin: 0 4px;
+}
+
+/* ── Auth user menu ───────────────────────────────────────────────────────── */
+.userMenu {
+  position: relative;
+}
+
+.avatarBtn {
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent, #10b981), #06b6d4);
+  border: 1px solid var(--border);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.avatarBtn:hover .avatar {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px -10px rgba(16, 185, 129, 0.6);
+}
+
+.userMenuPanel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  min-width: 240px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 10px);
+  box-shadow: 0 20px 40px -16px rgba(0, 0, 0, 0.45);
+  padding: 10px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.userMenuHeader {
+  padding: 8px 10px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.userMenuName {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.userMenuEmail {
+  font-size: 12px;
+  color: var(--text-muted);
+  word-break: break-all;
+}
+
+.userMenuMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.tag {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--accent, #10b981);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.userMenuDivider {
+  height: 1px;
+  background: var(--border);
+  margin: 2px 0;
+}
+
+.userMenuItem {
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.userMenuItem:hover {
+  background: rgba(239, 68, 68, 0.08);
+  color: #fca5a5;
 }

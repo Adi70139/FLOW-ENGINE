@@ -3,15 +3,55 @@ const BASE_URL =
   import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") ||
   "http://localhost:8060";
 
+// ─── Auth token storage ──────────────────────────────────────────────────────
+const TOKEN_STORAGE_KEY = "mr_auto_auth_token";
+const authListeners = new Set();
+
+export function getAuthToken() {
+  try {
+    return localStorage.getItem(TOKEN_STORAGE_KEY) || null;
+  } catch {
+    return null;
+  }
+}
+
+export function setAuthToken(token) {
+  try {
+    if (token) localStorage.setItem(TOKEN_STORAGE_KEY, token);
+    else localStorage.removeItem(TOKEN_STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
+  authListeners.forEach((fn) => {
+    try { fn(token); } catch { /* ignore */ }
+  });
+}
+
+export function onUnauthorized(handler) {
+  authListeners.add(handler);
+  return () => authListeners.delete(handler);
+}
+
+function authHeaders() {
+  const token = getAuthToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 async function request(path, options = {}) {
   const url = `${BASE_URL}${path}`;
   const response = await fetch(url, {
     ...options,
     headers: {
       "Content-Type": "application/json",
+      ...authHeaders(),
       ...options.headers,
     },
   });
+
+  if (response.status === 401 && !path.startsWith("/auth/")) {
+    // Token expired or invalid — clear and notify so the UI can redirect.
+    setAuthToken(null);
+  }
 
   if (response.status === 204) return null;
 
@@ -207,6 +247,25 @@ export const mapStepToTest = (step) => {
 // ─── API ──────────────────────────────────────────────────────────────────────
 
 export const api = {
+  // ── Auth ─────────────────────────────────────────────────────────────────
+  /** POST /auth/register → { token, user } */
+  register: ({ email, name, password }) =>
+    request(`/auth/register`, {
+      method: "POST",
+      body: JSON.stringify({ email, name, password }),
+    }),
+  /** POST /auth/login → { token, user } */
+  login: ({ email, password }) =>
+    request(`/auth/login`, {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    }),
+  /** GET /auth/me → UserProfile (requires Bearer token) */
+  me: () => request(`/auth/me`),
+  /** GET /auth/google-login-url?redirectTo= → { url } */
+  googleLoginUrl: (redirectTo = `${window.location.origin}/auth/callback`) =>
+    request(`/auth/google-login-url?redirectTo=${encodeURIComponent(redirectTo)}`),
+
   // ── Modules ──────────────────────────────────────────────────────────────
   getModules: () => request("/modules"),
   getModule: (id) => request(`/modules/${id}`),
@@ -483,6 +542,7 @@ export const api = {
 
     return fetch(`${BASE_URL}/import/postman`, {
       method: "POST",
+      headers: { ...authHeaders() },
       body: formData,
     }).then(async (res) => {
       const data = await res.json();
@@ -500,6 +560,7 @@ export const api = {
 
     return fetch(`${BASE_URL}/import/swagger`, {
       method: "POST",
+      headers: { ...authHeaders() },
       body: formData,
     }).then(async (res) => {
       const data = await res.json();
@@ -517,6 +578,7 @@ export const api = {
 
     return fetch(`${BASE_URL}/import/har`, {
       method: "POST",
+      headers: { ...authHeaders() },
       body: formData,
     }).then(async (res) => {
       const data = await res.json();
@@ -585,6 +647,7 @@ export const api = {
 
     return fetch(`${BASE_URL}/assistant/upload`, {
       method: "POST",
+      headers: { ...authHeaders() },
       body: formData,
     }).then(async (res) => {
       const ct = res.headers.get("content-type") || "";

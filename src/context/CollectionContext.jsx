@@ -1,6 +1,7 @@
 import { createContext, useContext, useReducer, useEffect, useRef } from "react";
 import { api, mapStepToTest, normalizeSchedule } from "../utils/api";
 import { toast } from "../components/ui/toast/toast";
+import { useAuth } from "./AuthContext";
 
 const ModuleContext = createContext(null);
 
@@ -314,9 +315,11 @@ function reducer(state, action) {
 export function ModuleProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const pollingTimers = useRef({});
+  const { token, isAuthenticated } = useAuth();
 
   // ── Initial load ──────────────────────────────────────────────────────────
   useEffect(() => {
+    if (!token || !isAuthenticated) return;
     async function load() {
       dispatch({ type: "FETCH_START" });
       try {
@@ -377,7 +380,7 @@ export function ModuleProvider({ children }) {
       }
     }
     load();
-  }, []);
+  }, [token, isAuthenticated]);
 
   // ── Load flows, environments & schedule when module is selected ───────────
   useEffect(() => {

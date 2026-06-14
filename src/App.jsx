@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Routes, Route, useLocation } from "react-router-dom";
+import { Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import Navbar from "./components/navbar/Navbar";
 import LandingPage from "./components/LandingPage";
 import Sidebar from "./components/Sidebar";
@@ -10,7 +10,9 @@ import Report from "./components/Report";
 import Toaster from "./components/ui/toast/Toaster";
 import ConfirmHost from "./components/ui/confirm/ConfirmHost";
 import ChatBot from "./components/ChatBot";
+import AuthPage from "./components/AuthPage";
 import { useModules } from "./context/CollectionContext";
+import { useAuth } from "./context/AuthContext";
 import styles from "./App.module.css";
 
 function ModuleLayout() {
@@ -30,11 +32,26 @@ function ModuleLayout() {
   );
 }
 
+function AuthCallback() {
+  const { isAuthenticated, loading } = useAuth();
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (!loading && isAuthenticated) navigate("/", { replace: true });
+  }, [loading, isAuthenticated, navigate]);
+  return (
+    <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>
+      Signing you in…
+    </div>
+  );
+}
+
 export default function App() {
   const location = useLocation();
   const { dispatch } = useModules();
+  const { isAuthenticated, loading } = useAuth();
 
   useEffect(() => {
+    if (!isAuthenticated) return;
     // Sync URL -> selected module
     const m = location.pathname.match(/^\/module\/[^\/]+\/(\d+)$/);
     if (m) {
@@ -43,7 +60,26 @@ export default function App() {
     } else if (location.pathname === "/") {
       dispatch({ type: "SELECT_MODULE", id: null });
     }
-  }, [location.pathname]);
+  }, [location.pathname, isAuthenticated]);
+
+  // While verifying an existing token, show a minimal placeholder.
+  if (loading) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)" }}>
+        Loading…
+      </div>
+    );
+  }
+
+  // Allow the OAuth callback route to render even without a hydrated user yet.
+  if (!isAuthenticated && location.pathname !== "/auth/callback") {
+    return (
+      <>
+        <AuthPage />
+        <Toaster />
+      </>
+    );
+  }
 
   return (
     <div>
@@ -52,6 +88,7 @@ export default function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/module/:slug/:id" element={<ModuleLayout />} />
         <Route path="/report" element={<Report />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
       </Routes>
       <Toaster />
       <ConfirmHost />
