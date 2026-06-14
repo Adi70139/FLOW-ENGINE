@@ -198,6 +198,7 @@ export const mapStepToTest = (step) => {
     pollIntervalMs: step.pollIntervalMs || 0,
     pollMaxAttempts: step.pollMaxAttempts || 0,
     pollExpectedStatus: step.pollExpectedStatus || 0,
+    payloadVariants: Array.isArray(step.payloadVariants) ? step.payloadVariants : [],
     response: cachedResponse,
   };
 };

@@ -52,6 +52,15 @@ function RequestEditor() {
   const [localSchemaCritical, setLocalSchemaCritical] = useState(false);
   const [localBodyRows, setLocalBodyRows] = useState([]);
   const [hasChanges, setHasChanges] = useState(false);
+  const [bodyDraft, setBodyDraft] = useState("");
+
+  // Keep the body textarea draft in sync with the persisted step payload.
+  // Re-seeds whenever the user switches steps or the saved payload changes via
+  // Save / Beautify / Parameterize / variant pick, but stays untouched while
+  // the user is just typing.
+  useEffect(() => {
+    setBodyDraft(selectedStep?.payload ?? "");
+  }, [selectedStepId, selectedStep?.payload]);
 
   useEffect(() => {
     if (selectedStep) {
@@ -211,7 +220,8 @@ function RequestEditor() {
     let resolvedBody = undefined;
     const methodUpper = (selectedStep.method || "GET").toUpperCase();
     if (["POST", "PUT", "PATCH", "DELETE"].includes(methodUpper)) {
-      resolvedBody = substitute(selectedStep.payload);
+      // Use the current draft so the user can hit Send with unsaved edits.
+      resolvedBody = substitute(bodyDraft ?? selectedStep.payload);
     }
 
     try {
@@ -270,6 +280,7 @@ function RequestEditor() {
 
   function handleApplyCurl() {
     const parsed = parseCurl(curlInput);
+    setBodyDraft(parsed.data || "");
     update({
       method: parsed.method || "GET",
       endpoint: parsed.url || "",
@@ -282,6 +293,7 @@ function RequestEditor() {
 
   // ── Parameterize ──
   function handleParameterizeApply(rows, updatedPayload) {
+    setBodyDraft(updatedPayload);
     update({
       parameterizedFields: rows,
       payload: updatedPayload
@@ -290,15 +302,22 @@ function RequestEditor() {
 
   // ── Beautify JSON ──
   function handleBeautify() {
-    const payload = selectedStep.payload;
+    const payload = bodyDraft;
     if (!payload) return;
     try {
       const parsed = typeof payload === "string" ? JSON.parse(payload) : payload;
       const formatted = JSON.stringify(parsed, null, 2);
+      setBodyDraft(formatted);
       update({ payload: formatted });
     } catch {
       toast.error("Invalid JSON format. Please verify standard JSON syntax before beautifying.");
     }
+  }
+
+  function handleSaveBody() {
+    if (bodyDraft === (selectedStep.payload ?? "")) return;
+    update({ payload: bodyDraft });
+    toast.success("Body saved");
   }
 
   async function handleGenerateAssertions() {
@@ -431,7 +450,8 @@ function RequestEditor() {
     }
   }
 
-  const hasPayload = !!(selectedStep.payload && selectedStep.payload.trim());
+  const hasPayload = !!(bodyDraft && bodyDraft.trim());
+  const hasUnsavedBody = (bodyDraft ?? "") !== (selectedStep.payload ?? "");
   const savedSkipConditionInput = selectedStep.skipCondition ? JSON.stringify(selectedStep.skipCondition, null, 2) : "";
   const hasSkipConditionChanges = skipConditionInput.trim() !== savedSkipConditionInput.trim();
   const canSaveSkipCondition = skipConditionInput.trim().length > 0 && hasSkipConditionChanges;
@@ -589,9 +609,69 @@ function RequestEditor() {
               );
             })()}
 
+            {(() => {
+              const variants = Array.isArray(selectedStep.payloadVariants)
+                ? selectedStep.payloadVariants.filter((v) => v && typeof v.bodyJson === "string")
+                : [];
+              if (variants.length === 0) return null;
+
+              const currentBody = bodyDraft || "";
+              // Normalize JSON so whitespace/formatting differences (e.g. after
+              // "Beautify JSON") don't cause a variant to be treated as "Custom".
+              const canonicalize = (text) => {
+                if (text == null) return null;
+                try {
+                  return JSON.stringify(JSON.parse(text));
+                } catch {
+                  return text.trim();
+                }
+              };
+              const canonicalCurrent = canonicalize(currentBody);
+              const matchedIndex = variants.findIndex(
+                (v) => canonicalize(v.bodyJson) === canonicalCurrent
+              );
+              const selectedValue = matchedIndex >= 0 ? String(matchedIndex) : "";
+
+              return (
+                <div className={styles.inheritBody}>
+                  <div className={styles.inheritRow}>
+                    <label className={styles.inheritLabel}>
+                      Payload variant
+                    </label>
+                    <select
+                      className={styles.inheritSelect}
+                      value={selectedValue}
+                      onChange={(e) => {
+                        const idx = parseInt(e.target.value, 10);
+                        const picked = variants[idx];
+                        if (picked) {
+                          setBodyDraft(picked.bodyJson);
+                          update({ payload: picked.bodyJson });
+                        }
+                      }}
+                    >
+                      {selectedValue === "" && (
+                        <option value="" disabled>
+                          — Custom (does not match any variant) —
+                        </option>
+                      )}
+                      {variants.map((v, i) => (
+                        <option key={i} value={i}>
+                          {v.name || `Variant ${i + 1}`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <p className={styles.inheritHint}>
+                    Pick a saved payload variant to populate the body. You can still edit the JSON below — it just won't match a variant until you switch back.
+                  </p>
+                </div>
+              );
+            })()}
+
             <Textarea
-              value={selectedStep.payload || ""}
-              onChange={(e) => update({ payload: e.target.value })}
+              value={bodyDraft}
+              onChange={(e) => setBodyDraft(e.target.value)}
               placeholder={
                 selectedStep.inheritBodyFromPreviousStep
                   ? '{\n  "// Add/override fields on inherited body": ""\n}'
@@ -607,6 +687,15 @@ function RequestEditor() {
               }
             />
             <div className={styles.bodyActions}>
+              <Button
+                size="small"
+                icon="💾"
+                onClick={handleSaveBody}
+                disabled={!hasUnsavedBody}
+                style={{ marginRight: "8px" }}
+              >
+                {hasUnsavedBody ? "Save Body" : "Saved"}
+              </Button>
               <Button
                 variant="secondary"
                 size="small"
