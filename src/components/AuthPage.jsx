@@ -22,6 +22,7 @@ export default function AuthPage() {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
 
   function switchMode(next) {
@@ -146,18 +147,30 @@ export default function AuthPage() {
           </div>
           <div className={styles.field}>
             <label className={styles.label} htmlFor="auth-password">Password</label>
-            <input
-              id="auth-password"
-              className={styles.input}
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete={isLogin ? "current-password" : "new-password"}
-              placeholder="••••••••"
-              disabled={busy}
-              required
-              minLength={isLogin ? undefined : 6}
-            />
+            <div className={styles.passwordWrap}>
+              <input
+                id="auth-password"
+                className={styles.input}
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete={isLogin ? "current-password" : "new-password"}
+                placeholder="••••••••"
+                disabled={busy}
+                required
+                minLength={isLogin ? undefined : 6}
+              />
+              <button
+                type="button"
+                className={styles.togglePwBtn}
+                onClick={() => setShowPassword((v) => !v)}
+                disabled={busy}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-pressed={showPassword}
+              >
+                {showPassword ? "Hide" : "Show"}
+              </button>
+            </div>
           </div>
 
           {error && <div className={styles.error} role="alert">{error}</div>}
