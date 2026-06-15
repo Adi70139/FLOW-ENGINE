@@ -270,6 +270,24 @@ export const api = {
   googleLoginUrl: (redirectTo = `${window.location.origin}/auth/callback`) =>
     request(`/auth/google-login-url?redirectTo=${encodeURIComponent(redirectTo)}`),
 
+  // ── Feedback ─────────────────────────────────────────────────────────────
+  /** POST /feedback → FeedbackResponse */
+  submitFeedback: (body) =>
+    request(`/feedback`, { method: "POST", body: JSON.stringify(body) }),
+  /** GET /feedback/mine?page&size → PageFeedbackResponse */
+  listMyFeedback: ({ page = 0, size = 20 } = {}) =>
+    request(`/feedback/mine?page=${page}&size=${size}`),
+  /** GET /feedback?page&size&status&type → PageFeedbackResponse (admin only) */
+  listAllFeedback: ({ page = 0, size = 20, status, type } = {}) => {
+    const params = new URLSearchParams({ page: String(page), size: String(size) });
+    if (status) params.set("status", status);
+    if (type) params.set("type", type);
+    return request(`/feedback?${params.toString()}`);
+  },
+  /** PATCH /feedback/{id}/status?status= → FeedbackResponse (admin only) */
+  updateFeedbackStatus: (id, status) =>
+    request(`/feedback/${id}/status?status=${encodeURIComponent(status)}`, { method: "PATCH" }),
+
   // ── Modules ──────────────────────────────────────────────────────────────
   getModules: () => request("/modules"),
   getModule: (id) => request(`/modules/${id}`),

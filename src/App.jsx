@@ -10,6 +10,7 @@ import Report from "./components/Report";
 import Toaster from "./components/ui/toast/Toaster";
 import ConfirmHost from "./components/ui/confirm/ConfirmHost";
 import ChatBot from "./components/ChatBot";
+import FeedbackWidget from "./components/FeedbackWidget";
 import AuthPage from "./components/AuthPage";
 import { useModules } from "./context/CollectionContext";
 import { useAuth } from "./context/AuthContext";
@@ -93,6 +94,7 @@ export default function App() {
       <Toaster />
       <ConfirmHost />
       <ChatBot />
+      <FeedbackWidget />
     </div>
   );
 }
