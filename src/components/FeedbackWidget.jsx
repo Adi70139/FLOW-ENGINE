@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { api } from "../utils/api";
 import { useAuth } from "../context/AuthContext";
 import { toast } from "./ui/toast/toast";
@@ -8,6 +8,29 @@ const TYPES = ["BUG", "FEATURE_REQUEST", "GENERAL"];
 const SEVERITIES = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
 const STATUSES = ["OPEN", "IN_REVIEW", "RESOLVED", "CLOSED"];
 const PAGE_SIZE = 10;
+
+const RESOLVED_STATUSES = new Set(["RESOLVED", "CLOSED"]);
+const POLL_INTERVAL_MS = 60_000;
+const SEEN_STORAGE_KEY = "mr_auto_feedback_seen_resolved";
+
+function loadSeenIds() {
+  try {
+    const raw = localStorage.getItem(SEEN_STORAGE_KEY);
+    if (!raw) return new Set();
+    const arr = JSON.parse(raw);
+    return new Set(Array.isArray(arr) ? arr.map(Number) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveSeenIds(set) {
+  try {
+    localStorage.setItem(SEEN_STORAGE_KEY, JSON.stringify(Array.from(set)));
+  } catch {
+    /* ignore */
+  }
+}
 
 function formatDate(iso) {
   if (!iso) return "";
@@ -298,14 +321,94 @@ export default function FeedbackWidget() {
   const { isAuthenticated, user } = useAuth();
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState("submit");
+  const [seenIds, setSeenIds] = useState(() => loadSeenIds());
+  const [resolvedItems, setResolvedItems] = useState([]); // [{id,title,status}]
+  const seenIdsRef = useRef(seenIds);
+  const firstPollRef = useRef(true);
   const isAdmin = user?.role === "ADMIN";
+
+  // Keep ref in sync so async pollers always see latest.
+  useEffect(() => { seenIdsRef.current = seenIds; }, [seenIds]);
 
   // Reset tab if a non-admin somehow lands on "all"
   useEffect(() => {
     if (!isAdmin && tab === "all") setTab("submit");
   }, [isAdmin, tab]);
 
+  // Poll the user's own feedback for new resolutions.
+  useEffect(() => {
+    if (!isAuthenticated) return undefined;
+    let cancelled = false;
+    let timer = null;
+
+    async function poll() {
+      try {
+        // Page 0 with a decent size catches most recent resolutions.
+        const res = await api.listMyFeedback({ page: 0, size: 50 });
+        if (cancelled) return;
+        const items = res?.content || [];
+        const resolved = items.filter((it) => RESOLVED_STATUSES.has(it.status));
+        setResolvedItems(resolved);
+
+        const currentSeen = seenIdsRef.current;
+        const newlyResolved = resolved.filter((it) => !currentSeen.has(it.id));
+
+        if (firstPollRef.current) {
+          // First load after login: don't toast for pre-existing resolutions,
+          // just compute the unread count.
+          firstPollRef.current = false;
+        } else if (newlyResolved.length > 0) {
+          const first = newlyResolved[0];
+          const label = first.status === "RESOLVED" ? "resolved" : "closed";
+          toast.success(
+            newlyResolved.length === 1
+              ? `Your feedback "${first.title || "(untitled)"}" was ${label}.`
+              : `${newlyResolved.length} of your feedback items were updated.`
+          );
+        }
+      } catch {
+        /* silent — don't spam the user if the poll fails */
+      } finally {
+        if (!cancelled) {
+          timer = setTimeout(poll, POLL_INTERVAL_MS);
+        }
+      }
+    }
+    poll();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+      firstPollRef.current = true;
+    };
+  }, [isAuthenticated]);
+
+  // Mark all currently-resolved items as seen.
+  const markAllSeen = useCallback(() => {
+    const next = new Set(seenIdsRef.current);
+    let changed = false;
+    for (const it of resolvedItems) {
+      if (!next.has(it.id)) {
+        next.add(it.id);
+        changed = true;
+      }
+    }
+    if (changed) {
+      saveSeenIds(next);
+      setSeenIds(next);
+    }
+  }, [resolvedItems]);
+
+  // When user opens the "My feedback" tab, clear the badge.
+  useEffect(() => {
+    if (open && tab === "mine") markAllSeen();
+  }, [open, tab, markAllSeen]);
+
   if (!isAuthenticated) return null;
+
+  const unreadCount = resolvedItems.reduce(
+    (n, it) => (seenIds.has(it.id) ? n : n + 1),
+    0
+  );
 
   return (
     <>
@@ -313,11 +416,20 @@ export default function FeedbackWidget() {
         type="button"
         className={styles.fab}
         onClick={() => setOpen((v) => !v)}
-        aria-label="Send feedback"
+        aria-label={
+          unreadCount > 0
+            ? `Send feedback — ${unreadCount} update${unreadCount === 1 ? "" : "s"}`
+            : "Send feedback"
+        }
         aria-expanded={open}
       >
         <span className={styles.fabIcon}>💬</span>
         Feedback
+        {unreadCount > 0 && (
+          <span className={styles.fabBadge} aria-hidden="true">
+            {unreadCount > 9 ? "9+" : unreadCount}
+          </span>
+        )}
       </button>
 
       {open && (
@@ -350,6 +462,11 @@ export default function FeedbackWidget() {
               onClick={() => setTab("mine")}
             >
               My feedback
+              {unreadCount > 0 && (
+                <span className={styles.tabBadge} aria-hidden="true">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
             </button>
             {isAdmin && (
               <button
