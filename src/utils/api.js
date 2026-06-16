@@ -273,7 +273,10 @@ export const mapStepToTest = (step) => {
       }
     })(),
     payload: step.bodyJson,
-    inheritBodyFromPreviousStep: !!step.inheritBodyFromPreviousStep,
+    inheritBodyFromPreviousStep:
+      step.inheritBodyFromPreviousStep != null
+        ? !!step.inheritBodyFromPreviousStep
+        : step.bodySourceStepId != null,
     bodySourceStepId: step.bodySourceStepId ?? null,
     assertions: step.assertionsJson ? JSON.parse(step.assertionsJson) : null,
     skipCondition: (() => {

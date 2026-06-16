@@ -109,6 +109,37 @@
   line-height: 1.5;
 }
 
+.usageHints {
+  margin: 0 0 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.usageHints strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: #818cf8;
+}
+
+.usageHints ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.usageHints li {
+  margin: 2px 0;
+  word-break: break-word;
+}
+
 .parameters {
   font-size: 12px;
   color: var(--text-secondary);

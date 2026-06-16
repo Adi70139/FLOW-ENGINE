@@ -9,6 +9,66 @@ import IconButton from "./ui/icon-button/IconButton";
 import { IconDelete, IconEdit } from "./ui/icons/Icons";
 import styles from "./MethodsTab.module.css";
 
+const USAGE_HINTS_CACHE_KEY = "mr_auto_method_usage_hints";
+
+function parseHintsFromJson(raw) {
+  if (!raw || typeof raw !== "string") return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed.filter(Boolean).map(String);
+    if (typeof parsed === "string" && parsed.trim()) return [parsed.trim()];
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+function extractUsageHints(method) {
+  if (!method || typeof method !== "object") return [];
+
+  const direct = method.usageHints;
+  if (Array.isArray(direct)) return direct.filter(Boolean).map(String);
+  if (typeof direct === "string" && direct.trim()) return [direct.trim()];
+
+  const alt = method.usageHint;
+  if (Array.isArray(alt)) return alt.filter(Boolean).map(String);
+  if (typeof alt === "string" && alt.trim()) return [alt.trim()];
+
+  const nested = method.metadata?.usageHints || method.hints?.usageHints;
+  if (Array.isArray(nested)) return nested.filter(Boolean).map(String);
+  if (typeof nested === "string" && nested.trim()) return [nested.trim()];
+
+  const jsonHints = parseHintsFromJson(method.usageHintsJson || method.usageHintsText || method.hintsJson);
+  if (jsonHints.length > 0) return jsonHints;
+
+  return [];
+}
+
+function readHintsCache() {
+  try {
+    const raw = localStorage.getItem(USAGE_HINTS_CACHE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeHintsCache(cache) {
+  try {
+    localStorage.setItem(USAGE_HINTS_CACHE_KEY, JSON.stringify(cache));
+  } catch {
+    // Ignore storage failures.
+  }
+}
+
+function mergeMethodWithHints(method, cache) {
+  const fromPayload = extractUsageHints(method);
+  const fromCache = cache?.[method?.id] || [];
+  const merged = fromPayload.length > 0 ? fromPayload : fromCache;
+  return { ...method, usageHints: merged };
+}
+
 function MethodsTab({ flowId, stepId }) {
   const [methods, setMethods] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -98,11 +158,43 @@ function MethodsTab({ flowId, stepId }) {
     setLoading(true);
     try {
       const data = await api.getAllMethodsIncludingDrafts();
-      setMethods(Array.isArray(data) ? data : []);
+      const cache = readHintsCache();
+      const list = Array.isArray(data) ? data : [];
+      const merged = list.map((m) => mergeMethodWithHints(m, cache));
+
+      // Try to enrich missing hints from detail endpoint and cache them.
+      const missingHintMethods = merged.filter((m) => !extractUsageHints(m).length);
+      if (missingHintMethods.length > 0) {
+        await Promise.all(
+          missingHintMethods.map(async (m) => {
+            try {
+              const detail = await api.getMethodDetail(m.id);
+              const detailHints = extractUsageHints(detail);
+              if (detailHints.length > 0) {
+                cache[m.id] = detailHints;
+              }
+            } catch {
+              // Ignore detail errors and keep list usable.
+            }
+          })
+        );
+      }
+
+      // Persist any hints seen from either list or detail.
+      merged.forEach((m) => {
+        const hints = extractUsageHints(m);
+        if (hints.length > 0) cache[m.id] = hints;
+      });
+      writeHintsCache(cache);
+
+      setMethods(merged.map((m) => mergeMethodWithHints(m, cache)));
     } catch (err) {
       try {
         const fallbackData = await api.getAllMethods();
-        setMethods(Array.isArray(fallbackData) ? fallbackData : []);
+        const cache = readHintsCache();
+        const list = Array.isArray(fallbackData) ? fallbackData : [];
+        const merged = list.map((m) => mergeMethodWithHints(m, cache));
+        setMethods(merged);
       } catch (fallbackErr) {
         toast.error("Failed to fetch methods: " + fallbackErr.message);
       }
@@ -182,12 +274,20 @@ function MethodsTab({ flowId, stepId }) {
 
     setUpdatingMethod(true);
     try {
-      await api.updateMethod(editingMethodId, {
+      const updated = await api.updateMethod(editingMethodId, {
         name: editMethodName,
         description: editMethodDescription,
         parameters: validParams,
         groovyScript: editMethodScript.trim() ? editMethodScript : null,
       });
+
+      const hints = extractUsageHints(updated);
+      if (hints.length > 0 && updated?.id != null) {
+        const cache = readHintsCache();
+        cache[updated.id] = hints;
+        writeHintsCache(cache);
+      }
+
       await fetchMethods();
       cancelEditMethod();
       toast.success("Method updated successfully");
@@ -352,11 +452,18 @@ function MethodsTab({ flowId, stepId }) {
 
     setGeneratingMethod(true);
     try {
-      await api.generateMethod({
+      const generated = await api.generateMethod({
         name: methodName,
         description: methodDescription,
         parameters: validParams
       });
+
+      const hints = extractUsageHints(generated);
+      if (hints.length > 0 && generated?.id != null) {
+        const cache = readHintsCache();
+        cache[generated.id] = hints;
+        writeHintsCache(cache);
+      }
 
       await fetchMethods();
       setMethodName("");
@@ -436,6 +543,18 @@ function MethodsTab({ flowId, stepId }) {
                   <span className={styles.methodId}>ID: {method.id}</span>
                 </div>
                 <p className={styles.methodDescription}>{method.description}</p>
+                {(() => {
+                  const list = extractUsageHints(method);
+                  if (list.length === 0) return null;
+                  return (
+                    <div className={styles.usageHints}>
+                      <strong>Usage hints</strong>
+                      <ul>
+                        {list.map((h, i) => <li key={i}>{h}</li>)}
+                      </ul>
+                    </div>
+                  );
+                })()}
                 {method.parameters && method.parameters.length > 0 && (
                   <div className={styles.parameters}>
                     <strong>Parameters:</strong>
