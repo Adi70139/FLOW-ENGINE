@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useModules } from "../context/CollectionContext";
-import { api } from "../utils/api";
+import { api, openPdfInTab } from "../utils/api";
+import { toast } from "./ui/toast/toast";
 import Button from "./ui/button/Button";
 import EmptyState from "./ui/empty-state/EmptyState";
 import Badge from "./ui/badge/Badge";
@@ -10,14 +11,11 @@ import styles from "./Report.module.css";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-async function openPdfInTab(url) {
+async function handleOpenPdf(url) {
   try {
-    const res = await fetch(url);
-    const blob = await res.blob();
-    const blobUrl = URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
-    window.open(blobUrl, "_blank");
-  } catch {
-    window.open(url, "_blank");
+    await openPdfInTab(url);
+  } catch (err) {
+    toast.error(err?.message || "Failed to open report.");
   }
 }
 
@@ -587,7 +585,7 @@ function Report() {
               <Button
                 variant="primary"
                 size="small"
-                onClick={() => openPdfInTab(downloadUrl)}
+                onClick={() => handleOpenPdf(downloadUrl)}
                 icon="📥"
               >
                 Export PDF

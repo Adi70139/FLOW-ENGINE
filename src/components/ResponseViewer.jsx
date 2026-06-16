@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { api } from "../utils/api";
+import { api, openPdfInTab } from "../utils/api";
 import { useModules } from "../context/CollectionContext";
+import { toast } from "./ui/toast/toast";
 import Tabs from "./ui/tabs/Tabs";
 import Button from "./ui/button/Button";
 import styles from "./ResponseViewer.module.css";
@@ -11,14 +12,11 @@ const RESPONSE_TABS = [
   { id: "request", label: "Request (Resolved)" },
 ];
 
-async function openPdfInTab(url) {
+async function handleOpenPdf(url) {
   try {
-    const res = await fetch(url);
-    const blob = await res.blob();
-    const blobUrl = URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
-    window.open(blobUrl, "_blank");
-  } catch {
-    window.open(url, "_blank");
+    await openPdfInTab(url);
+  } catch (err) {
+    toast.error(err?.message || "Failed to open report.");
   }
 }
 
@@ -154,7 +152,7 @@ function ResponseViewer({ response: propResponse }) {
             <Button
               variant="secondary"
               size="small"
-              onClick={() => openPdfInTab(api.getFlowReport(selectedFlowId))}
+              onClick={() => handleOpenPdf(api.getFlowReport(selectedFlowId))}
               title="Open PDF execution report in new tab"
             >
               📄 PDF Report

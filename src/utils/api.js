@@ -41,21 +41,30 @@ function authHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-async function request(path, options = {}) {
-  const url = `${BASE_URL}${path}`;
+/** Run a fetch with the auth header attached and clear the token on 401. */
+async function fetchWithAuth(url, options = {}) {
   const response = await fetch(url, {
     ...options,
     headers: {
-      "Content-Type": "application/json",
       ...authHeaders(),
+      ...(options.headers || {}),
+    },
+  });
+  if (response.status === 401 && !url.includes("/auth/")) {
+    setAuthToken(null);
+  }
+  return response;
+}
+
+async function request(path, options = {}) {
+  const url = `${BASE_URL}${path}`;
+  const response = await fetchWithAuth(url, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
       ...options.headers,
     },
   });
-
-  if (response.status === 401 && !path.startsWith("/auth/")) {
-    // Token expired or invalid — clear and notify so the UI can redirect.
-    setAuthToken(null);
-  }
 
   if (response.status === 204) return null;
 
@@ -77,6 +86,46 @@ async function request(path, options = {}) {
     throw new Error(errorMsg);
   }
   return data;
+}
+
+/**
+ * Fetch a PDF from the backend with auth, validate the response, and open it
+ * in a new tab. Throws a friendly Error on auth/server failure so callers can
+ * show a toast — never tries to render an HTML/JSON error body as a PDF.
+ */
+export async function openPdfInTab(path) {
+  const url = path.startsWith("http") ? path : `${BASE_URL}${path}`;
+  let response;
+  try {
+    response = await fetchWithAuth(url);
+  } catch (e) {
+    throw new Error("Network error while downloading the report.", { cause: e });
+  }
+
+  if (response.status === 401) {
+    throw new Error("Your session has expired. Please sign in again.");
+  }
+  if (response.status === 403) {
+    throw new Error("You don't have permission to download this report.");
+  }
+  if (!response.ok) {
+    throw new Error(`Failed to download report (${response.status} ${response.statusText}).`);
+  }
+
+  const contentType = (response.headers.get("content-type") || "").toLowerCase();
+  const blob = await response.blob();
+  if (!contentType.includes("application/pdf") && !contentType.includes("octet-stream")) {
+    // Backend returned something that isn't a PDF — surface its message instead.
+    let detail = "";
+    try { detail = await blob.text(); } catch { /* ignore */ }
+    throw new Error(detail?.slice(0, 240) || "The server did not return a PDF report.");
+  }
+
+  const blobUrl = URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
+  window.open(blobUrl, "_blank");
+  // Revoke later so the new tab has time to load it.
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+  return blobUrl;
 }
 
 // ─── Mappers ─────────────────────────────────────────────────────────────────
@@ -562,9 +611,8 @@ export const api = {
     formData.append("flowName", flowName);
     formData.append("moduleId", moduleId);
 
-    return fetch(`${BASE_URL}/import/postman`, {
+    return fetchWithAuth(`${BASE_URL}/import/postman`, {
       method: "POST",
-      headers: { ...authHeaders() },
       body: formData,
     }).then(async (res) => {
       const data = await res.json();
@@ -580,9 +628,8 @@ export const api = {
     formData.append("flowName", flowName);
     formData.append("moduleId", moduleId);
 
-    return fetch(`${BASE_URL}/import/swagger`, {
+    return fetchWithAuth(`${BASE_URL}/import/swagger`, {
       method: "POST",
-      headers: { ...authHeaders() },
       body: formData,
     }).then(async (res) => {
       const data = await res.json();
@@ -598,9 +645,8 @@ export const api = {
     formData.append("flowName", flowName);
     formData.append("moduleId", moduleId);
 
-    return fetch(`${BASE_URL}/import/har`, {
+    return fetchWithAuth(`${BASE_URL}/import/har`, {
       method: "POST",
-      headers: { ...authHeaders() },
       body: formData,
     }).then(async (res) => {
       const data = await res.json();
@@ -667,9 +713,8 @@ export const api = {
     if (flowId != null && flowId !== "") formData.append("flowId", String(flowId));
     if (filterDomain) formData.append("filterDomain", filterDomain);
 
-    return fetch(`${BASE_URL}/assistant/upload`, {
+    return fetchWithAuth(`${BASE_URL}/assistant/upload`, {
       method: "POST",
-      headers: { ...authHeaders() },
       body: formData,
     }).then(async (res) => {
       const ct = res.headers.get("content-type") || "";
