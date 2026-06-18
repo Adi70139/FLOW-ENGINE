@@ -30,6 +30,10 @@ function extractUsageHints(method) {
   if (Array.isArray(direct)) return direct.filter(Boolean).map(String);
   if (typeof direct === "string" && direct.trim()) return [direct.trim()];
 
+  const misspelled = method.usageHinds;
+  if (Array.isArray(misspelled)) return misspelled.filter(Boolean).map(String);
+  if (typeof misspelled === "string" && misspelled.trim()) return [misspelled.trim()];
+
   const alt = method.usageHint;
   if (Array.isArray(alt)) return alt.filter(Boolean).map(String);
   if (typeof alt === "string" && alt.trim()) return [alt.trim()];
@@ -67,6 +71,10 @@ function mergeMethodWithHints(method, cache) {
   const fromCache = cache?.[method?.id] || [];
   const merged = fromPayload.length > 0 ? fromPayload : fromCache;
   return { ...method, usageHints: merged };
+}
+
+function getMethodIdentifier(payload, fallbackId = null) {
+  return payload?.id ?? payload?.methodId ?? fallbackId;
 }
 
 function MethodsTab({ flowId, stepId }) {
@@ -207,6 +215,24 @@ function MethodsTab({ flowId, stepId }) {
     return method?.type === "USER_DEFINED";
   }
 
+  function rememberUsageHints(payload, fallbackMethodId = null) {
+    const hints = extractUsageHints(payload);
+    const methodId = getMethodIdentifier(payload, fallbackMethodId);
+    if (hints.length === 0 || methodId == null) return;
+
+    const cache = readHintsCache();
+    cache[methodId] = hints;
+    writeHintsCache(cache);
+
+    setMethods((current) =>
+      current.map((method) =>
+        String(method.id) === String(methodId)
+          ? { ...method, usageHints: hints }
+          : method
+      )
+    );
+  }
+
   function startEditMethod(method) {
     setEditingMethodId(method.id);
     setEditMethodName(method.name || "");
@@ -281,12 +307,7 @@ function MethodsTab({ flowId, stepId }) {
         groovyScript: editMethodScript.trim() ? editMethodScript : null,
       });
 
-      const hints = extractUsageHints(updated);
-      if (hints.length > 0 && updated?.id != null) {
-        const cache = readHintsCache();
-        cache[updated.id] = hints;
-        writeHintsCache(cache);
-      }
+      rememberUsageHints(updated, editingMethodId);
 
       await fetchMethods();
       cancelEditMethod();
@@ -458,12 +479,7 @@ function MethodsTab({ flowId, stepId }) {
         parameters: validParams
       });
 
-      const hints = extractUsageHints(generated);
-      if (hints.length > 0 && generated?.id != null) {
-        const cache = readHintsCache();
-        cache[generated.id] = hints;
-        writeHintsCache(cache);
-      }
+      rememberUsageHints(generated);
 
       await fetchMethods();
       setMethodName("");
@@ -488,6 +504,7 @@ function MethodsTab({ flowId, stepId }) {
     try {
       const result = await api.testMethod(parseInt(testMethodId), testParameters);
       setTestResult(result);
+      rememberUsageHints(result, testMethodId);
       toast.success("Method tested successfully");
     } catch (err) {
       toast.error("Failed to test method: " + err.message);
@@ -548,10 +565,8 @@ function MethodsTab({ flowId, stepId }) {
                   if (list.length === 0) return null;
                   return (
                     <div className={styles.usageHints}>
-                      <strong>Usage hints</strong>
-                      <ul>
-                        {list.map((h, i) => <li key={i}>{h}</li>)}
-                      </ul>
+                      <strong>Usage -</strong>
+                      <span>{list.join(" ")}</span>
                     </div>
                   );
                 })()}
