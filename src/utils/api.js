@@ -1,4 +1,4 @@
-//const BASE_URL = "https://api-orchestration.onrender.com";
+// const BASE_URL = "https://api-orchestration.onrender.com";
 const BASE_URL =
   import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") ||
   "http://localhost:8060";
@@ -186,17 +186,17 @@ export function sanitizeSkipCondition(skipCondition) {
   const source = skipCondition.skipCondition || skipCondition;
   const conditions = Array.isArray(source.conditions)
     ? source.conditions.map((condition) => {
-        const cleaned = {
-          path: condition.path,
-          operator: condition.operator,
-        };
+      const cleaned = {
+        path: condition.path,
+        operator: condition.operator,
+      };
 
-        if (Object.prototype.hasOwnProperty.call(condition, "value")) {
-          cleaned.value = condition.value;
-        }
+      if (Object.prototype.hasOwnProperty.call(condition, "value")) {
+        cleaned.value = condition.value;
+      }
 
-        return cleaned;
-      })
+      return cleaned;
+    })
     : [];
 
   return {
@@ -225,8 +225,8 @@ export const mapTestToStep = (test) => ({
   bodySourceStepId:
     test.inheritBodyFromPreviousStep && test.bodySourceStepId
       ? (typeof test.bodySourceStepId === "number"
-          ? test.bodySourceStepId
-          : parseInt(test.bodySourceStepId) || null)
+        ? test.bodySourceStepId
+        : parseInt(test.bodySourceStepId) || null)
       : null,
   assertions: test.assertions || null,
   skipCondition: sanitizeSkipCondition(test.skipCondition),
@@ -321,6 +321,17 @@ export const api = {
   /** GET /auth/google-login-url?redirectTo= → { url } */
   googleLoginUrl: (redirectTo = `${window.location.origin}/auth/callback`) =>
     request(`/auth/google-login-url?redirectTo=${encodeURIComponent(redirectTo)}`),
+
+  // ── User Profile & Dashboard ──────────────────────────────────────────────
+  /** PUT /users/me → UserProfile */
+  updateProfile: (data) =>
+    request(`/users/me`, { method: "PUT", body: JSON.stringify(data) }),
+  /** DELETE /users/me */
+  deleteAccount: () =>
+    request(`/users/me`, { method: "DELETE" }),
+  /** GET /users/me/dashboard */
+  getDashboard: () =>
+    request(`/users/me/dashboard`),
 
   // ── Feedback ─────────────────────────────────────────────────────────────
   /** POST /feedback → FeedbackResponse */

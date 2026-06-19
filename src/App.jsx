@@ -12,6 +12,7 @@ import ConfirmHost from "./components/ui/confirm/ConfirmHost";
 import ChatBot from "./components/ChatBot";
 import FeedbackWidget from "./components/FeedbackWidget";
 import AuthPage from "./components/AuthPage";
+import ProfilePage from "./components/ProfilePage";
 import { useModules } from "./context/CollectionContext";
 import { useAuth } from "./context/AuthContext";
 import styles from "./App.module.css";
@@ -87,6 +88,7 @@ export default function App() {
       <Navbar />
       <Routes>
         <Route path="/" element={<LandingPage />} />
+        <Route path="/profile" element={<ProfilePage />} />
         <Route path="/module/:slug/:id" element={<ModuleLayout />} />
         <Route path="/report" element={<Report />} />
         <Route path="/auth/callback" element={<AuthCallback />} />

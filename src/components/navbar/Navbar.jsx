@@ -138,6 +138,14 @@ function Navbar() {
                   type="button"
                   role="menuitem"
                   className={styles.userMenuItem}
+                  onClick={() => { setMenuOpen(false); navigate("/profile"); }}
+                >
+                  Profile & Dashboard
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className={styles.userMenuItem}
                   onClick={handleLogout}
                 >
                   Sign out
