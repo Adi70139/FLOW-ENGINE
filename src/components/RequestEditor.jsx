@@ -27,7 +27,7 @@ const REQUEST_TABS = [
 ];
 
 function RequestEditor() {
-  const { selectedStep, selectedFlow, selectedFlowId, selectedStepId, updateStep, selectedEnv, dispatch } =
+  const { selectedStep, selectedFlow, selectedFlowId, selectedStepId, updateStep, createStepFromVariant, selectedEnv, dispatch } =
     useModules();
 
   const [activeTab, setActiveTab] = useState("headers");
@@ -318,6 +318,19 @@ function RequestEditor() {
     if (bodyDraft === (selectedStep.payload ?? "")) return;
     update({ payload: bodyDraft });
     toast.success("Body saved");
+  }
+
+  async function handleCreateVariantStep(variant) {
+    if (!variant || typeof createStepFromVariant !== "function") return;
+    try {
+      await createStepFromVariant(selectedFlowId, selectedStep.id, {
+        variantName: variant.name || "Variant",
+        variantIndex: selectedStep.payloadVariants.indexOf(variant),
+        name: `${selectedStep.name} - ${variant.name || "Variant"}`,
+      });
+    } catch (err) {
+      // toast is handled in context
+    }
   }
 
   async function handleGenerateAssertions() {
@@ -661,6 +674,16 @@ function RequestEditor() {
                         </option>
                       ))}
                     </select>
+                    {selectedValue !== "" && (
+                      <Button
+                        size="small"
+                        variant="secondary"
+                        style={{ marginLeft: "8px" }}
+                        onClick={() => handleCreateVariantStep(variants[parseInt(selectedValue, 10)])}
+                      >
+                        Create Step from Variant
+                      </Button>
+                    )}
                   </div>
                   <p className={styles.inheritHint}>
                     Pick a saved payload variant to populate the body. You can still edit the JSON below — it just won't match a variant until you switch back.

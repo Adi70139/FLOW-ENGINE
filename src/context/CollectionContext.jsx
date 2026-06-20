@@ -1107,6 +1107,20 @@ export function useModules() {
     }
   };
 
+  const createStepFromVariant = async (flowId, stepId, data) => {
+    try {
+      const newStep = await api.createStepFromVariant(flowId, stepId, data);
+      const step = mapStepToTest(newStep);
+      dispatch({ type: "ADD_STEP", flowId, step });
+      toast.success("Step created from variant");
+      return step;
+    } catch (error) {
+      console.error("Failed to create step from variant:", error);
+      toast.error(error.message || "Failed to create step from variant");
+      throw error;
+    }
+  };
+
   const reorderSteps = async (flowId, tests) => {
     const steps = (tests || []).map((step, index) => ({
       stepId: step.id,
@@ -1178,6 +1192,7 @@ export function useModules() {
     updateStep,
     deleteStep,
     duplicateStep,
+    createStepFromVariant,
     fetchSteps,
     reorderSteps,
     importFlow,

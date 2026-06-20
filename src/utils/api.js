@@ -441,6 +441,11 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ steps }),
     }),
+  createStepFromVariant: (flowId, stepId, data) =>
+    request(`/flows/${flowId}/steps/${stepId}/variants/create-step`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
 
   // ── Environments ──────────────────────────────────────────────────────────
   getModuleEnvironments: (moduleId) =>
