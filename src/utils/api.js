@@ -710,6 +710,12 @@ export const api = {
   /** DELETE /record/{sessionId} */
   discardRecording: (sessionId) =>
     request(`/record/${sessionId}`, { method: "DELETE" }),
+  /** POST /record/{sessionId}/pause */
+  pauseRecording: (sessionId) =>
+    request(`/record/${sessionId}/pause`, { method: "POST" }),
+  /** POST /record/{sessionId}/resume */
+  resumeRecording: (sessionId) =>
+    request(`/record/${sessionId}/resume`, { method: "POST" }),
 
   // ── Application Assistant ─────────────────────────────────────────────────
   /** POST /assistant/chat → AssistantChatResponse */

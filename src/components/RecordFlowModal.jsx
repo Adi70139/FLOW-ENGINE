@@ -30,6 +30,8 @@ export default function RecordFlowModal({ onClose, defaultModuleId }) {
   const [session, setSession] = useState(null); // { id, status, url, requestCount, ... }
   const [starting, setStarting] = useState(false);
   const [stopping, setStopping] = useState(false);
+  const [pausing, setPausing] = useState(false);
+  const [resuming, setResuming] = useState(false);
   const pollRef = useRef(null);
 
   // Poll the recording status while a session is active
@@ -130,7 +132,34 @@ export default function RecordFlowModal({ onClose, defaultModuleId }) {
     }
   }
 
+  async function handlePause() {
+    if (!session?.id) return;
+    setPausing(true);
+    try {
+      const result = await api.pauseRecording(session.id);
+      setSession(prev => ({ ...prev, ...result }));
+    } catch (err) {
+      toast.error("Failed to pause: " + (err.message || err));
+    } finally {
+      setPausing(false);
+    }
+  }
+
+  async function handleResume() {
+    if (!session?.id) return;
+    setResuming(true);
+    try {
+      const result = await api.resumeRecording(session.id);
+      setSession(prev => ({ ...prev, ...result }));
+    } catch (err) {
+      toast.error("Failed to resume: " + (err.message || err));
+    } finally {
+      setResuming(false);
+    }
+  }
+
   const isRecording = !!session?.id;
+  const isPaused = session?.status === "PAUSED";
 
   return (
     <Modal
@@ -259,8 +288,8 @@ export default function RecordFlowModal({ onClose, defaultModuleId }) {
           <>
             <div className={styles.recordingStatus}>
               <div className={styles.recordingHeader}>
-                <span className={styles.pulseDot} />
-                Recording in progress
+                <span className={isPaused ? styles.pausedDot : styles.pulseDot} />
+                {isPaused ? "Recording Paused" : "Recording in progress"}
               </div>
               <div>
                 <div className={styles.countBig}>{session.requestCount ?? 0}</div>
@@ -278,6 +307,24 @@ export default function RecordFlowModal({ onClose, defaultModuleId }) {
             </p>
 
             <div className={styles.actions}>
+              {isPaused ? (
+                <Button
+                  variant="primary"
+                  onClick={handleResume}
+                  disabled={resuming || stopping || pausing}
+                >
+                  {resuming ? "Resuming..." : "▶ Resume"}
+                </Button>
+              ) : (
+                <Button
+                  variant="secondary"
+                  onClick={handlePause}
+                  disabled={pausing || stopping || resuming}
+                >
+                  {pausing ? "Pausing..." : "⏸ Pause"}
+                </Button>
+              )}
+              <div style={{ flex: 1 }} />
               <Button
                 variant="danger"
                 onClick={handleDiscard}

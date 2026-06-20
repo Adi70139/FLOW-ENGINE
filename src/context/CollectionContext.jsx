@@ -1109,11 +1109,9 @@ export function useModules() {
 
   const createStepFromVariant = async (flowId, stepId, data) => {
     try {
-      const newStep = await api.createStepFromVariant(flowId, stepId, data);
-      const step = mapStepToTest(newStep);
-      dispatch({ type: "ADD_STEP", flowId, step });
+      await api.createStepFromVariant(flowId, stepId, data);
+      await fetchSteps(flowId);
       toast.success("Step created from variant");
-      return step;
     } catch (error) {
       console.error("Failed to create step from variant:", error);
       toast.error(error.message || "Failed to create step from variant");
