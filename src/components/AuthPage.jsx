@@ -114,7 +114,7 @@ export default function AuthPage() {
           </div>
 
           <div className={styles.brandFooter}>
-            © {new Date().getFullYear()} MrAutomation. All rights reserved.
+            © {new Date().getFullYear()} Flow Engine. All rights reserved.
           </div>
         </div>
 
