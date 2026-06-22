@@ -863,10 +863,10 @@ export function useModules() {
     }
   };
 
-  const executeModule = async (moduleId, envId) => {
+  const executeModule = async (moduleId, envId, parallel = false) => {
     dispatch({ type: "EXECUTION_START", id: moduleId, execType: "module" });
     try {
-      const results = await api.executeModule(moduleId, envId);
+      const results = await api.executeModule(moduleId, envId, parallel);
       const executionId = results?.moduleExecutionId || results?.id;
 
       let reportData = null;

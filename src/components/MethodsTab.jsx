@@ -6,6 +6,7 @@ import Button from "./ui/button/Button";
 import Input from "./ui/input/Input";
 import Textarea from "./ui/textarea/Textarea";
 import IconButton from "./ui/icon-button/IconButton";
+import Modal from "./ui/modal/Modal";
 import { IconDelete, IconEdit } from "./ui/icons/Icons";
 import styles from "./MethodsTab.module.css";
 
@@ -111,14 +112,27 @@ function MethodsTab({ flowId, stepId }) {
   const [attachParameterBindings, setAttachParameterBindings] = useState({});
   const [attachingToStep, setAttachingToStep] = useState(false);
 
-  // Step methods already attached to this step
   const [stepMethods, setStepMethods] = useState([]);
   const [detachingStepMethodId, setDetachingStepMethodId] = useState(null);
+
+  // Parameter types
+  const [availableParameterTypes, setAvailableParameterTypes] = useState([]);
 
   useEffect(() => {
     fetchMethods();
     fetchStepMethods();
+    fetchParameterTypes();
   }, [flowId, stepId]);
+
+  async function fetchParameterTypes() {
+    try {
+      const types = await api.getMethodParameterTypes();
+      setAvailableParameterTypes(Array.isArray(types) ? types : ["string", "number", "boolean"]);
+    } catch (err) {
+      console.warn("Failed to fetch parameter types, using defaults", err);
+      setAvailableParameterTypes(["string", "number", "boolean"]);
+    }
+  }
 
   async function fetchStepMethods() {
     if (!flowId || !stepId) return;
@@ -806,98 +820,107 @@ function MethodsTab({ flowId, stepId }) {
         )}
       </div>
 
-      {/* Generate Custom Method Section */}
+      {/* Generate Custom Method Modal */}
       {showGenerateForm && (
-        <div className={styles.section}>
-          <h3>Generate Custom Method</h3>
-          <div className={styles.formGroup}>
-            <Input
-              label="Method Name"
-              placeholder="e.g. ValidateUser"
-              value={methodName}
-              onChange={(e) => setMethodName(e.target.value)}
-              required
-            />
-          </div>
+        <Modal title="Generate Custom Method" onClose={() => setShowGenerateForm(false)} size="md">
+          <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+            <div className={styles.formGroup}>
+              <Input
+                label="Method Name"
+                placeholder="e.g. ValidateUser"
+                value={methodName}
+                onChange={(e) => setMethodName(e.target.value)}
+                required
+              />
+            </div>
 
-          <div className={styles.formGroup}>
-            <Textarea
-              label="Method Description"
-              placeholder="Describe what this method does..."
-              value={methodDescription}
-              onChange={(e) => setMethodDescription(e.target.value)}
-              rows={3}
-              required
-            />
-          </div>
+            <div className={styles.formGroup}>
+              <Textarea
+                label="Method Description"
+                placeholder="Describe what this method does..."
+                value={methodDescription}
+                onChange={(e) => setMethodDescription(e.target.value)}
+                rows={3}
+                required
+              />
+            </div>
 
-          <div className={styles.formGroup}>
-            <label className={styles.label}>Parameters</label>
-            <div className={styles.parametersList}>
-              {parameters.map((param, idx) => (
-                <div key={idx} className={styles.parameterRow}>
-                  <Input
-                    placeholder="Parameter name"
-                    value={param.name}
-                    onChange={(e) =>
-                      handleParameterChange(idx, "name", e.target.value)
-                    }
-                  />
-                  <Input
-                    placeholder="Type (string, number, boolean)"
-                    value={param.type}
-                    onChange={(e) =>
-                      handleParameterChange(idx, "type", e.target.value)
-                    }
-                  />
-                  <Input
-                    placeholder="Description"
-                    value={param.description}
-                    onChange={(e) =>
-                      handleParameterChange(idx, "description", e.target.value)
-                    }
-                  />
-                  <label className={styles.checkboxLabel}>
-                    <input
-                      type="checkbox"
-                      checked={param.required}
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Parameters</label>
+              <div className={styles.parametersList}>
+                {parameters.map((param, idx) => (
+                  <div key={idx} className={styles.parameterRow}>
+                    <Input
+                      placeholder="Parameter name"
+                      value={param.name}
                       onChange={(e) =>
-                        handleParameterChange(idx, "required", e.target.checked)
+                        handleParameterChange(idx, "name", e.target.value)
                       }
                     />
-                    Required
-                  </label>
-                  {parameters.length > 1 && (
-                    <IconButton
-                      size="small"
-                      variant="ghost"
-                      onClick={() => handleRemoveParameter(idx)}
+                    <select
+                      className={styles.select}
+                      value={param.type}
+                      onChange={(e) =>
+                        handleParameterChange(idx, "type", e.target.value)
+                      }
                     >
-                      <IconDelete size={16} />
-                    </IconButton>
-                  )}
-                </div>
-              ))}
+                      <option value="" disabled>Select Type</option>
+                      {availableParameterTypes.map(type => (
+                        <option key={type.value || type} value={type.value || type}>{type.label || type}</option>
+                      ))}
+                    </select>
+                    <Input
+                      placeholder="Description"
+                      value={param.description}
+                      onChange={(e) =>
+                        handleParameterChange(idx, "description", e.target.value)
+                      }
+                    />
+                    <label className={styles.checkboxLabel}>
+                      <input
+                        type="checkbox"
+                        checked={param.required}
+                        onChange={(e) =>
+                          handleParameterChange(idx, "required", e.target.checked)
+                        }
+                      />
+                      Required
+                    </label>
+                    {parameters.length > 1 && (
+                      <IconButton
+                        size="small"
+                        variant="ghost"
+                        onClick={() => handleRemoveParameter(idx)}
+                      >
+                        <IconDelete size={16} />
+                      </IconButton>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <Button
+                variant="secondary"
+                size="small"
+                onClick={handleAddParameter}
+                style={{ marginTop: "8px", alignSelf: "flex-start" }}
+              >
+                + Add Parameter
+              </Button>
             </div>
-            <Button
-              variant="secondary"
-              size="small"
-              onClick={handleAddParameter}
-              style={{ marginTop: "8px" }}
-            >
-              + Add Parameter
-            </Button>
-          </div>
 
-          <div className={styles.actionButtons}>
-            <Button
-              onClick={handleGenerateMethod}
-              disabled={generatingMethod}
-            >
-              {generatingMethod ? "Generating..." : "Generate Method"}
-            </Button>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "10px" }}>
+              <Button variant="secondary" onClick={() => setShowGenerateForm(false)} disabled={generatingMethod}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleGenerateMethod}
+                disabled={generatingMethod}
+              >
+                {generatingMethod ? "Generating..." : "Generate Method"}
+              </Button>
+            </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Test Method Section */}

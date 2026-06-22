@@ -193,12 +193,13 @@ function LandingPage() {
 function ModuleCard({ module, onEdit, selectedEnv, onEnvChange }) {
   const { deleteModule, executeModule, executions } = useModules();
   const navigate = useNavigate();
+  const [isParallel, setIsParallel] = useState(false);
 
   async function handleRun(e) {
     e.stopPropagation();
     if (executions[module.id]?.status === "running") return;
     try {
-      await executeModule(module.id, selectedEnv);
+      await executeModule(module.id, selectedEnv, isParallel);
     } catch (err) {
       // handled in context
     }
@@ -310,7 +311,18 @@ function ModuleCard({ module, onEdit, selectedEnv, onEnvChange }) {
         </div>
       )}
 
-      <div className={styles.cardActions}>
+      <div className={styles.cardActions} style={{ marginTop: "auto" }}>
+        <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "12px" }} onClick={(e) => e.stopPropagation()}>
+          <label style={{ fontSize: "12px", color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+            <input 
+              type="checkbox" 
+              checked={isParallel} 
+              onChange={(e) => setIsParallel(e.target.checked)}
+              style={{ accentColor: "var(--accent)" }}
+            />
+            Run Parallel
+          </label>
+        </div>
         <Button
           variant="primary"
           className={`${styles.runBtn} ${exec?.status === "running" ? styles.runningGlow : ""}`}
@@ -323,12 +335,13 @@ function ModuleCard({ module, onEdit, selectedEnv, onEnvChange }) {
               <IconPlay size={16} />
             )
           }
+          style={{ width: "100%" }}
         >
           {exec?.status === "running" ? "Running..." : "Run All"}
         </Button>
 
         {exec?.status === "done" && (
-          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          <div style={{ display: "flex", gap: "8px", alignItems: "center", marginTop: "8px" }}>
             <div
               className={`${styles.statusIcon} ${
                 exec.results?.allFlowsPassed ? styles.pass : styles.fail

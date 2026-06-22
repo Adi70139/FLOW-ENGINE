@@ -491,12 +491,12 @@ export const api = {
     }),
   getFlowExecutionStatus: (executionId) =>
     request(`/execute/flows/runs/${executionId}/status`),
-  /** POST /execute/modules/:moduleId?envId=... */
-  executeModule: (moduleId, envId) => {
-    const url = envId
-      ? `/execute/modules/${moduleId}?envId=${envId}`
-      : `/execute/modules/${moduleId}`;
-    return request(url, { method: "POST" });
+  /** POST /execute/modules/:moduleId?envId=...&parallel=... */
+  executeModule: (moduleId, envId, parallel = false) => {
+    const params = new URLSearchParams();
+    if (envId) params.set("envId", envId);
+    params.set("parallel", String(parallel));
+    return request(`/execute/modules/${moduleId}?${params.toString()}`, { method: "POST" });
   },
   /** POST /execute/modules/bulk  body: { ids, envIds? } */
   executeBulkModules: (ids, envIds) =>
@@ -578,6 +578,8 @@ export const api = {
     request("/methods"),
   getAllMethodsIncludingDrafts: () =>
     request("/methods/all"),
+  getMethodParameterTypes: () =>
+    request("/methods/parameter-types"),
   getMethodDetail: (methodId) =>
     request(`/methods/${methodId}`),
   updateMethod: (methodId, data) =>
