@@ -42,6 +42,7 @@
     flex-direction: column;
     height: auto;
   }
+
   .leftPane {
     width: 100%;
     border-right: none;

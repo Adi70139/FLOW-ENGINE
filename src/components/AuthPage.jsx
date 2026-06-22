@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { toast } from "./ui/toast/toast";
+import { IconModule } from "./ui/icons/Icons";
 import styles from "./AuthPage.module.css";
 
 function GoogleIcon() {
@@ -62,7 +63,6 @@ export default function AuthPage() {
     setGoogleLoading(true);
     try {
       await loginWithGoogle();
-      // Browser will redirect; nothing else to do here.
     } catch (err) {
       setError(err?.message || "Google sign-in failed.");
       setGoogleLoading(false);
@@ -74,147 +74,188 @@ export default function AuthPage() {
 
   return (
     <div className={styles.wrapper}>
-      <div className={styles.card}>
-        <div className={styles.brand}>
-          <span className={styles.brandDot} />
-          <span>Flow Engine</span>
+      {/* Decorative Blobs */}
+      <div className={styles.blob1} />
+      <div className={styles.blob2} />
+      <div className={styles.blob3} />
+
+      <div className={styles.container}>
+        {/* Left Side: Brand Panel */}
+        <div className={styles.brandPanel}>
+          <div className={styles.logoArea}>
+            <div className={styles.logoIconBg}>
+              <IconModule size={32} className={styles.logoIcon} />
+            </div>
+            <span className={styles.brandTitle}>Flow Engine</span>
+          </div>
+
+          <div className={styles.brandContent}>
+            <h2 className={styles.brandHeading}>
+              Orchestrate & Automate <span className={styles.accentText}>Effortlessly</span>
+            </h2>
+            <p className={styles.brandDescription}>
+              Design, parameterize, and run API workflows with a beautiful, high-performance visual runner.
+            </p>
+
+            <ul className={styles.featureList}>
+              <li className={styles.featureItem}>
+                <span className={styles.checkIcon}>✓</span>
+                <span>Visual Flow Customization</span>
+              </li>
+              <li className={styles.featureItem}>
+                <span className={styles.checkIcon}>✓</span>
+                <span>Interactive Execution Dashboard</span>
+              </li>
+              <li className={styles.featureItem}>
+                <span className={styles.checkIcon}>✓</span>
+                <span>Custom Method Builder</span>
+              </li>
+            </ul>
+          </div>
+
+          <div className={styles.brandFooter}>
+            © {new Date().getFullYear()} MrAutomation. All rights reserved.
+          </div>
         </div>
 
-        <div>
-          <h1 className={styles.heading}>
-            {isLogin ? "Sign in to your account" : "Create your account"}
-          </h1>
-          <p className={styles.subheading}>
-            {isLogin
-              ? "Use your email and password, or continue with Google."
-              : "Sign up with an email/password, or use your Google account."}
+        {/* Right Side: Auth Card Form */}
+        <div className={styles.card}>
+          <div className={styles.cardHeader}>
+            <h1 className={styles.heading}>
+              {isLogin ? "Welcome back" : "Get started"}
+            </h1>
+            <p className={styles.subheading}>
+              {isLogin
+                ? "Enter your details to access your dashboard"
+                : "Create an account to start building flows"}
+            </p>
+          </div>
+
+          <div className={styles.tabs} role="tablist" aria-label="Auth mode">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={isLogin}
+              className={`${styles.tab} ${isLogin ? styles.tabActive : ""}`}
+              onClick={() => switchMode("login")}
+              disabled={busy}
+            >
+              Sign In
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={!isLogin}
+              className={`${styles.tab} ${!isLogin ? styles.tabActive : ""}`}
+              onClick={() => switchMode("register")}
+              disabled={busy}
+            >
+              Register
+            </button>
+          </div>
+
+          <form className={styles.form} onSubmit={handleSubmit} noValidate>
+            {!isLogin && (
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="auth-name">Name</label>
+                <input
+                  id="auth-name"
+                  className={styles.input}
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  autoComplete="name"
+                  placeholder="Jane Doe"
+                  disabled={busy}
+                  required
+                />
+              </div>
+            )}
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="auth-email">Email Address</label>
+              <input
+                id="auth-email"
+                className={styles.input}
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+                placeholder="you@example.com"
+                disabled={busy}
+                required
+              />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="auth-password">Password</label>
+              <div className={styles.passwordWrap}>
+                <input
+                  id="auth-password"
+                  className={styles.input}
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete={isLogin ? "current-password" : "new-password"}
+                  placeholder="••••••••"
+                  disabled={busy}
+                  required
+                  minLength={isLogin ? undefined : 6}
+                />
+                <button
+                  type="button"
+                  className={styles.togglePwBtn}
+                  onClick={() => setShowPassword((v) => !v)}
+                  disabled={busy}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-pressed={showPassword}
+                >
+                  {showPassword ? "Hide" : "Show"}
+                </button>
+              </div>
+            </div>
+
+            {error && <div className={styles.error} role="alert">{error}</div>}
+
+            <button type="submit" className={styles.primaryBtn} disabled={busy}>
+              {submitting
+                ? (isLogin ? "Signing in…" : "Creating account…")
+                : (isLogin ? "Sign in" : "Create account")}
+            </button>
+          </form>
+
+          <div className={styles.divider}>
+            <span className={styles.dividerLine} />
+            <span>or</span>
+            <span className={styles.dividerLine} />
+          </div>
+
+          <button
+            type="button"
+            className={styles.googleBtn}
+            onClick={handleGoogle}
+            disabled={busy}
+          >
+            <GoogleIcon />
+            {googleLoading ? "Redirecting to Google…" : "Continue with Google"}
+          </button>
+
+          <p className={styles.footer}>
+            {isLogin ? (
+              <>
+                Don't have an account?{" "}
+                <button type="button" onClick={() => switchMode("register")} disabled={busy}>
+                  Register
+                </button>
+              </>
+            ) : (
+              <>
+                Already have an account?{" "}
+                <button type="button" onClick={() => switchMode("login")} disabled={busy}>
+                  Sign in
+                </button>
+              </>
+            )}
           </p>
         </div>
-
-        <div className={styles.tabs} role="tablist" aria-label="Auth mode">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={isLogin}
-            className={`${styles.tab} ${isLogin ? styles.tabActive : ""}`}
-            onClick={() => switchMode("login")}
-            disabled={busy}
-          >
-            Login
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={!isLogin}
-            className={`${styles.tab} ${!isLogin ? styles.tabActive : ""}`}
-            onClick={() => switchMode("register")}
-            disabled={busy}
-          >
-            Register
-          </button>
-        </div>
-
-        <form className={styles.form} onSubmit={handleSubmit} noValidate>
-          {!isLogin && (
-            <div className={styles.field}>
-              <label className={styles.label} htmlFor="auth-name">Name</label>
-              <input
-                id="auth-name"
-                className={styles.input}
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                autoComplete="name"
-                placeholder="Jane Doe"
-                disabled={busy}
-                required
-              />
-            </div>
-          )}
-          <div className={styles.field}>
-            <label className={styles.label} htmlFor="auth-email">Email</label>
-            <input
-              id="auth-email"
-              className={styles.input}
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
-              placeholder="you@example.com"
-              disabled={busy}
-              required
-            />
-          </div>
-          <div className={styles.field}>
-            <label className={styles.label} htmlFor="auth-password">Password</label>
-            <div className={styles.passwordWrap}>
-              <input
-                id="auth-password"
-                className={styles.input}
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete={isLogin ? "current-password" : "new-password"}
-                placeholder="••••••••"
-                disabled={busy}
-                required
-                minLength={isLogin ? undefined : 6}
-              />
-              <button
-                type="button"
-                className={styles.togglePwBtn}
-                onClick={() => setShowPassword((v) => !v)}
-                disabled={busy}
-                aria-label={showPassword ? "Hide password" : "Show password"}
-                aria-pressed={showPassword}
-              >
-                {showPassword ? "Hide" : "Show"}
-              </button>
-            </div>
-          </div>
-
-          {error && <div className={styles.error} role="alert">{error}</div>}
-
-          <button type="submit" className={styles.primaryBtn} disabled={busy}>
-            {submitting
-              ? (isLogin ? "Signing in…" : "Creating account…")
-              : (isLogin ? "Sign in" : "Create account")}
-          </button>
-        </form>
-
-        <div className={styles.divider}>
-          <span className={styles.dividerLine} />
-          <span>or</span>
-          <span className={styles.dividerLine} />
-        </div>
-
-        <button
-          type="button"
-          className={styles.googleBtn}
-          onClick={handleGoogle}
-          disabled={busy}
-        >
-          <GoogleIcon />
-          {googleLoading ? "Redirecting to Google…" : "Continue with Google"}
-        </button>
-
-        <p className={styles.footer}>
-          {isLogin ? (
-            <>
-              Don't have an account?{" "}
-              <button type="button" onClick={() => switchMode("register")} disabled={busy}>
-                Register
-              </button>
-            </>
-          ) : (
-            <>
-              Already have an account?{" "}
-              <button type="button" onClick={() => switchMode("login")} disabled={busy}>
-                Sign in
-              </button>
-            </>
-          )}
-        </p>
       </div>
     </div>
   );

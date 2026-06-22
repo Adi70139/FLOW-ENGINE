@@ -240,9 +240,9 @@ function Sidebar() {
                   onChange={(e) => toggleFlowSelection(e, flow.id)}
                   onClick={(e) => e.stopPropagation()}
                 />
-                <div className={`${styles.chevron} ${isOpen ? styles.chevronOpen : ""}`}>
+                {/* <div className={`${styles.chevron} ${isOpen ? styles.chevronOpen : ""}`}>
                   <IconChevron size={14} />
-                </div>
+                </div> */}
                 <IconFlow size={20} className={styles.collectionIcon} />
                 <div className={styles.collectionInfo}>
                   <div className={styles.collectionName}>{flow.name || "Untitled Flow"}</div>
@@ -531,20 +531,20 @@ function ImportFlowModal({ moduleId, onClose }) {
     importType === "swagger"
       ? "Swagger/OpenAPI file"
       : importType === "har"
-      ? "HAR file"
-      : "Postman Collection file";
+        ? "HAR file"
+        : "Postman Collection file";
   const acceptTypes =
     importType === "swagger"
       ? ".json,.yaml,.yml"
       : importType === "har"
-      ? ".har,.json"
-      : ".json";
+        ? ".har,.json"
+        : ".json";
   const modalTitle =
     importType === "swagger"
       ? "Import Swagger/OpenAPI"
       : importType === "har"
-      ? "Import HAR File"
-      : "Import Postman Collection";
+        ? "Import HAR File"
+        : "Import Postman Collection";
 
   return (
     <Modal title={modalTitle} onClose={onClose} size="sm">

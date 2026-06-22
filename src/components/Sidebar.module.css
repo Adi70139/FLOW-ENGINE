@@ -206,11 +206,20 @@
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
-.passText { color: var(--status-success); font-weight: bold; }
-.failText { color: var(--status-error); font-weight: bold; }
+.passText {
+  color: var(--status-success);
+  font-weight: bold;
+}
+
+.failText {
+  color: var(--status-error);
+  font-weight: bold;
+}
 
 .loading {
   padding: 20px;
