@@ -49,12 +49,22 @@ function Sidebar() {
   });
 
   const [editingFlow, setEditingFlow] = useState(null);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [activeDropdownFlowId, setActiveDropdownFlowId] = useState(null);
   const [showImport, setShowImport] = useState(false);
   const [showRecord, setShowRecord] = useState(false);
   const [showCreateFlow, setShowCreateFlow] = useState(false);
   const [showCreateUiFlow, setShowCreateUiFlow] = useState(false);
   const [selectedFlows, setSelectedFlows] = useState(new Set());
   const [bulkRunning, setBulkRunning] = useState(false);
+
+  useEffect(() => {
+    function closeDropdowns() {
+      setActiveDropdownFlowId(null);
+    }
+    window.addEventListener("click", closeDropdowns);
+    return () => window.removeEventListener("click", closeDropdowns);
+  }, []);
 
   function toggleFlowSelection(e, flowId) {
     e.stopPropagation();
@@ -149,43 +159,95 @@ function Sidebar() {
 
   const flows = selectedModule.flows;
 
+  if (isCollapsed) {
+    return (
+      <div className={`${styles.sidebar} ${styles.sidebarCollapsed}`}>
+        <div className={styles.sidebarCollapsedContent}>
+          <button
+            type="button"
+            className={styles.sidebarExpandAction}
+            onClick={() => setIsCollapsed(false)}
+            title="Expand Sidebar"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="13 17 18 12 13 7" />
+              <polyline points="6 17 11 12 6 7" />
+            </svg>
+          </button>
+          <div className={styles.collapsedRotatedText}>FLOWS</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.sidebar}>
       <div className={styles.flows}>
         <div className={styles.sectionHeader}>
-          <span className={styles.sectionTitle}>Flows</span>
-          <div className={styles.sectionActions}>
+          <div className={styles.sectionToolbar}>
             <button
-              className={`${styles.sectionBtn} ${styles.recordBtn}`}
+              type="button"
+              className={`${styles.toolbarBtn} ${styles.recordBtn}`}
               onClick={() => setShowRecord(true)}
               title="Record API calls from a browser session"
             >
-              <IconRecord size={12} />
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/>
+                <circle cx="12" cy="12" r="8"/>
+              </svg>
               <span>Record</span>
             </button>
             <button
-              className={styles.sectionBtn}
+              type="button"
+              className={styles.toolbarBtn}
               onClick={() => setShowImport(true)}
               title="Import Postman Collection"
             >
-              <IconImport size={14} />
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
               <span>Import</span>
             </button>
             <button
-              className={`${styles.sectionBtn} ${styles.uiBtn}`}
+              type="button"
+              className={styles.toolbarBtn}
               onClick={() => setShowCreateUiFlow(true)}
-              title="Generate a UI automation flow from natural-language steps"
+              title="Create UI Automation Flow"
             >
-              <span aria-hidden="true" style={{ fontSize: 12 }}>🖥️</span>
-              <span>UI</span>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                <line x1="8" y1="21" x2="16" y2="21"/>
+                <line x1="12" y1="17" x2="12" y2="21"/>
+              </svg>
+              <span>UI Flow</span>
             </button>
             <button
-              className={styles.sectionBtn}
+              type="button"
+              className={`${styles.toolbarBtn} ${styles.newBtn}`}
               onClick={() => setShowCreateFlow(true)}
               title="Create New Flow"
             >
-              <IconPlus size={14} />
-              <span>Create</span>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+              <span>New</span>
+            </button>
+          </div>
+          <div className={styles.sectionLabelRow}>
+            <span className={styles.sectionTitle}>Flows</span>
+            <button
+              type="button"
+              className={styles.collapseBtn}
+              onClick={() => setIsCollapsed(true)}
+              title="Collapse Sidebar"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="11 17 6 12 11 7"/>
+                <polyline points="18 17 13 12 18 7"/>
+              </svg>
             </button>
           </div>
         </div>
@@ -254,27 +316,6 @@ function Sidebar() {
                 <div className={styles.actions}>
                   <IconButton
                     size="small"
-                    variant="secondary"
-                    title="Edit flow"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditingFlow(flow);
-                    }}
-                  >
-                    <IconEdit size={14} />
-                  </IconButton>
-
-                  <IconButton
-                    size="small"
-                    variant="secondary"
-                    title="Duplicate flow"
-                    onClick={(e) => handleDuplicateFlow(e, flow)}
-                  >
-                    <IconDuplicate size={14} />
-                  </IconButton>
-
-                  <IconButton
-                    size="small"
                     variant="primary"
                     title="Run Flow"
                     onClick={(e) => handleRunFlow(e, flow)}
@@ -298,29 +339,75 @@ function Sidebar() {
                     )}
                   </IconButton>
 
-                  {exec?.status === "done" && (
+                  <div className={styles.moreMenuContainer}>
                     <IconButton
                       size="small"
                       variant="secondary"
-                      title="View Report"
+                      title="More actions"
                       onClick={(e) => {
                         e.stopPropagation();
-                        navigate(`/report?type=flow&id=${flow.id}`);
+                        setActiveDropdownFlowId(activeDropdownFlowId === flow.id ? null : flow.id);
                       }}
                     >
-                      <IconReport size={14} />
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="1.5" />
+                        <circle cx="12" cy="5" r="1.5" />
+                        <circle cx="12" cy="19" r="1.5" />
+                      </svg>
                     </IconButton>
-                  )}
 
-                  <IconButton
-                    size="small"
-                    variant="danger"
-                    title="Delete flow"
-                    className={styles.deleteBtn}
-                    onClick={(e) => handleDeleteFlow(e, flow.id)}
-                  >
-                    <IconDelete size={14} />
-                  </IconButton>
+                    {activeDropdownFlowId === flow.id && (
+                      <div className={styles.moreDropdown} onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          className={styles.moreOption}
+                          onClick={(e) => {
+                            setEditingFlow(flow);
+                            setActiveDropdownFlowId(null);
+                          }}
+                        >
+                          <IconEdit size={14} />
+                          Edit Flow
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.moreOption}
+                          onClick={(e) => {
+                            handleDuplicateFlow(e, flow);
+                            setActiveDropdownFlowId(null);
+                          }}
+                        >
+                          <IconDuplicate size={14} />
+                          Duplicate
+                        </button>
+                        {exec?.status === "done" && (
+                          <button
+                            type="button"
+                            className={styles.moreOption}
+                            onClick={(e) => {
+                              navigate(`/report?type=flow&id=${flow.id}`);
+                              setActiveDropdownFlowId(null);
+                            }}
+                          >
+                            <IconReport size={14} />
+                            View Report
+                          </button>
+                        )}
+                        <div className={styles.moreDivider} />
+                        <button
+                          type="button"
+                          className={`${styles.moreOption} ${styles.moreOptionDanger}`}
+                          onClick={(e) => {
+                            handleDeleteFlow(e, flow.id);
+                            setActiveDropdownFlowId(null);
+                          }}
+                        >
+                          <IconDelete size={14} />
+                          Delete Flow
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 

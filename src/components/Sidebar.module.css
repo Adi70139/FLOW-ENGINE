@@ -10,6 +10,52 @@
   transition: all 0.3s var(--ease);
 }
 
+.sidebarCollapsed {
+  width: 50px !important;
+}
+
+.sidebarCollapseAction, .sidebarExpandAction {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.sidebarCollapseAction:hover, .sidebarExpandAction:hover {
+  opacity: 1;
+  color: var(--accent);
+  background: transparent;
+}
+
+.sidebarCollapsedContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 0;
+  gap: 24px;
+  height: 100%;
+}
+
+.collapsedRotatedText {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  font-weight: 800;
+  color: var(--text-muted);
+  letter-spacing: 2px;
+  font-size: 11px;
+  text-transform: uppercase;
+  margin-top: 10px;
+}
+
 .flows {
   flex: 1;
   overflow-y: auto;
@@ -21,11 +67,33 @@
 
 .sectionHeader {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 8px;
+  flex-direction: column;
+  gap: 6px;
   margin-bottom: 8px;
   padding: 0 4px;
+}
+
+.sectionToolbar {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: nowrap;
+}
+
+.sectionLabelRow {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.sectionLeft {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
 }
 
 .sectionTitle {
@@ -34,41 +102,137 @@
   text-transform: uppercase;
   letter-spacing: 1.5px;
   color: var(--text-muted);
-  padding-top: 5px;
   white-space: nowrap;
 }
 
 .sectionActions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  justify-content: flex-end;
-  flex: 1 1 auto;
-  min-width: 0;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 4px;
+  align-items: center;
 }
 
-.sectionBtn {
+/* Toolbar buttons: icon + text label */
+.toolbarBtn {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 8px;
+  padding: 3px 8px 3px 6px;
+  height: 24px;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text-secondary);
-  background: rgba(0, 0, 0, 0.03);
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 6px;
   cursor: pointer;
-  transition: all 0.2s var(--ease);
-  font-family: var(--font-main);
   white-space: nowrap;
-  line-height: 1;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  flex-shrink: 0;
 }
 
-.sectionBtn:hover {
+.toolbarBtn:hover {
   background: rgba(16, 185, 129, 0.08);
   border-color: var(--accent);
   color: var(--accent);
+}
+
+.toolbarBtn.recordBtn {
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.25);
+  background: rgba(239, 68, 68, 0.05);
+}
+
+.toolbarBtn.recordBtn:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+.toolbarBtn.newBtn {
+  color: var(--accent);
+  border-color: rgba(16, 185, 129, 0.3);
+  background: rgba(16, 185, 129, 0.06);
+}
+
+.toolbarBtn.newBtn:hover {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: var(--accent);
+}
+
+/* Icon-only toolbar button (collapse) */
+.toolbarBtnIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.toolbarBtnIcon:hover {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Collapse sidebar button — always visible next to FLOWS label */
+.collapseBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.collapseBtn:hover {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: var(--accent);
+}
+
+.collapseBtn:hover svg {
+  stroke: var(--accent);
+}
+
+/* Legacy - kept for compatibility */
+.sectionBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.sectionBtn:hover {
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--accent);
+}
+
+.sectionBtn.recordBtn:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
 }
 
 /* ── Collection / Flow Item ── */
@@ -134,20 +298,69 @@
   text-overflow: ellipsis;
 }
 
-/* ── Actions ── */
+/* ── Actions Dropdown ── */
 .actions {
   display: flex;
-  gap: 4px;
-  opacity: 0;
-  transition: opacity 0.2s;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
 }
 
-.collection:hover .actions {
-  opacity: 1;
+.moreMenuContainer {
+  position: relative;
+  display: inline-flex;
 }
 
-.active .actions {
-  opacity: 1;
+.moreDropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
+  z-index: 100;
+  min-width: 130px;
+  padding: 4px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.moreOption {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  transition: all 0.15s var(--ease);
+  font-family: var(--font-main);
+}
+
+.moreOption:hover {
+  background: rgba(16, 185, 129, 0.06);
+  color: var(--accent);
+}
+
+.moreDivider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+.moreOptionDanger {
+  color: var(--status-error);
+}
+
+.moreOptionDanger:hover {
+  background: rgba(239, 68, 68, 0.06);
+  color: var(--status-error);
 }
 
 /* ── Test Items (Steps) ── */
