@@ -14,7 +14,7 @@ const INITIAL_FORM = {
   headers: "{\n  \"Accept\": \"application/json\"\n}",
   body: "",
   description: "",
-  payloadListStr: "",
+  payloadList: [],
   testType: "LOAD",
   virtualUsers: 5,
   durationSeconds: 15,
@@ -37,6 +37,10 @@ export default function PerformancePage() {
   const [loadingApis, setLoadingApis] = useState(false);
   const [selectedApi, setSelectedApi] = useState(null);
   const [viewMode, setViewMode] = useState("apis"); // "apis" or "history"
+
+  // Modal payload editor state
+  const [editingPayloadIndex, setEditingPayloadIndex] = useState(null);
+  const [editingPayloadValue, setEditingPayloadValue] = useState("");
 
   // Sidebar state
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -130,13 +134,13 @@ export default function PerformancePage() {
       }
     }
 
-    let payloadStr = "";
+    let payloads = [];
     if (run.payloadListJson) {
       try {
         const arr = JSON.parse(run.payloadListJson);
-        payloadStr = Array.isArray(arr) ? arr.join("\n") : "";
+        payloads = Array.isArray(arr) ? arr : [];
       } catch {
-        payloadStr = run.payloadListJson;
+        payloads = [run.payloadListJson];
       }
     }
 
@@ -147,7 +151,7 @@ export default function PerformancePage() {
       headers: hdrsStr,
       body: run.resolvedBodyJson || run.body || "",
       description: "",
-      payloadListStr: payloadStr,
+      payloadList: payloads,
       testType: run.testType || "LOAD",
       virtualUsers: run.virtualUsers || 5,
       durationSeconds: run.durationSeconds || 15,
@@ -187,13 +191,13 @@ export default function PerformancePage() {
       }
     }
 
-    let payloadStr = "";
+    let payloads = [];
     if (api.payloadListJson) {
       try {
         const arr = JSON.parse(api.payloadListJson);
-        payloadStr = Array.isArray(arr) ? arr.join("\n") : "";
+        payloads = Array.isArray(arr) ? arr : [];
       } catch {
-        payloadStr = api.payloadListJson;
+        payloads = [api.payloadListJson];
       }
     }
 
@@ -205,7 +209,7 @@ export default function PerformancePage() {
       headers: hdrsStr,
       body: api.bodyJson || api.body || "",
       description: api.description || "",
-      payloadListStr: payloadStr,
+      payloadList: payloads,
     }));
   }
 
@@ -228,8 +232,7 @@ export default function PerformancePage() {
       return;
     }
 
-    const payloadList = form.payloadListStr
-      .split("\n")
+    const cleanedPayloads = (form.payloadList || [])
       .map((line) => line.trim())
       .filter((line) => line.length > 0);
 
@@ -240,7 +243,7 @@ export default function PerformancePage() {
       method: form.method,
       headers: parsedHeaders,
       body: form.body || null,
-      payloadList: payloadList,
+      payloadList: cleanedPayloads,
     };
 
     try {
@@ -333,6 +336,10 @@ export default function PerformancePage() {
       return;
     }
 
+    const cleanedPayloads = (form.payloadList || [])
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+
     const payload = {
       apiId: selectedApi?.id || null,
       name: form.name,
@@ -340,10 +347,7 @@ export default function PerformancePage() {
       method: form.method,
       headers: parsedHeaders,
       body: form.body || null,
-      payloadList: form.payloadListStr
-        .split("\n")
-        .map((line) => line.trim())
-        .filter((line) => line.length > 0),
+      payloadList: cleanedPayloads,
       testType: form.testType,
       virtualUsers: parseInt(form.virtualUsers) || 1,
       durationSeconds: parseInt(form.durationSeconds) || 5,
@@ -881,14 +885,87 @@ export default function PerformancePage() {
                 />
               )}
 
-              <Textarea
-                label="Payload List (One entry per line for virtual users)"
-                value={form.payloadListStr}
-                onChange={(e) => handleInputChange("payloadListStr", e.target.value)}
-                placeholder="Payload 1&#10;Payload 2&#10;Payload 3"
-                rows={3}
-                mono
-              />
+              <div className={styles.formGroup} style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", padding: "12px", background: "var(--bg-input)", display: "flex", flexDirection: "column", gap: "8px" }}>
+                <label className={styles.label} style={{ fontWeight: "600", color: "var(--text-primary)" }}>
+                  Payload Parameterization (One per virtual user)
+                </label>
+                {(!form.payloadList || form.payloadList.length === 0) ? (
+                  <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", padding: "8px", border: "1px dashed var(--border)", borderRadius: "var(--radius-sm)", textAlign: "center" }}>
+                    No parameterized payloads. Click below to add.
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "150px", overflowY: "auto", paddingRight: "4px" }}>
+                    {form.payloadList.map((payload, idx) => (
+                      <div key={idx} style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                        <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", minWidth: "42px", fontFamily: "var(--font-mono)" }}>
+                          VU #{idx + 1}
+                        </span>
+                        <Input
+                          value={payload}
+                          onChange={(e) => {
+                            const newList = [...form.payloadList];
+                            newList[idx] = e.target.value;
+                            handleInputChange("payloadList", newList);
+                          }}
+                          placeholder={`Payload for VU ${idx + 1}`}
+                          style={{ flex: 1, padding: "6px 10px" }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingPayloadIndex(idx);
+                            setEditingPayloadValue(payload);
+                          }}
+                          style={{
+                            background: "var(--bg-elevated)",
+                            border: "1px solid var(--border)",
+                            borderRadius: "var(--radius-sm)",
+                            color: "var(--text-secondary)",
+                            cursor: "pointer",
+                            fontSize: "0.75rem",
+                            padding: "6px 8px",
+                            fontFamily: "var(--font-mono)"
+                          }}
+                          title="Edit payload as formatted JSON"
+                        >
+                          {"{ }"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newList = form.payloadList.filter((_, i) => i !== idx);
+                            handleInputChange("payloadList", newList);
+                          }}
+                          style={{
+                            background: "transparent",
+                            border: "none",
+                            color: "var(--status-error, #ef4444)",
+                            cursor: "pointer",
+                            fontSize: "1rem",
+                            padding: "4px",
+                            display: "flex",
+                            alignItems: "center"
+                          }}
+                          title="Remove payload"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="small"
+                  onClick={() => {
+                    handleInputChange("payloadList", [...(form.payloadList || []), ""]);
+                  }}
+                  style={{ alignSelf: "flex-start", fontSize: "0.8rem", padding: "4px 8px" }}
+                >
+                  + Add VU Payload
+                </Button>
+              </div>
 
               <div className={styles.formGrid}>
                 <Input
@@ -951,23 +1028,23 @@ export default function PerformancePage() {
                 />
               )}
 
-              <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
-                <Button
+              <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
+                <button
                   type="button"
-                  variant="secondary"
                   onClick={handleSaveApi}
-                  style={{ flex: 1 }}
+                  className={styles.beautifiedButtonSecondary}
+                  style={{ flex: 1, padding: "10px 14px", fontSize: "0.95rem" }}
                 >
                   {selectedApi ? "Update Saved API" : "Save API Config"}
-                </Button>
-                <Button
+                </button>
+                <button
                   type="submit"
-                  variant="primary"
                   disabled={isSubmitting || !!activeRunId}
-                  style={{ flex: 1.5 }}
+                  className={styles.beautifiedButtonPrimary}
+                  style={{ flex: 1.5, padding: "10px 14px", fontSize: "0.95rem" }}
                 >
                   {isSubmitting ? "Starting..." : activeRunId ? "Test In Progress" : "Run Performance Test"}
-                </Button>
+                </button>
               </div>
             </form>
           )}
@@ -1156,6 +1233,82 @@ export default function PerformancePage() {
           )}
         </div>
       </div>
+
+      {/* JSON Payload Editor Modal */}
+      {editingPayloadIndex !== null && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: "100%",
+          height: "100%",
+          backgroundColor: "rgba(0, 0, 0, 0.6)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 9999
+        }}>
+          <div style={{
+            backgroundColor: "var(--bg-elevated, #fff)",
+            border: "1px solid var(--border)",
+            borderRadius: "var(--radius-lg, 8px)",
+            padding: "24px",
+            width: "550px",
+            maxWidth: "90%",
+            display: "flex",
+            flexDirection: "column",
+            gap: "16px",
+            boxShadow: "var(--glass-shadow)"
+          }}>
+            <h3 style={{ margin: 0, fontSize: "1.2rem", fontWeight: "600" }}>Edit Payload for VU #{editingPayloadIndex + 1}</h3>
+            <Textarea
+              label="Payload Content (JSON or Text)"
+              value={editingPayloadValue}
+              onChange={(e) => setEditingPayloadValue(e.target.value)}
+              placeholder='{"username": "user1", "password": "pwd"}'
+              rows={12}
+              mono
+            />
+            <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end", marginTop: "4px" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  try {
+                    const parsed = JSON.parse(editingPayloadValue);
+                    setEditingPayloadValue(JSON.stringify(parsed, null, 2));
+                    toast.success("JSON formatted successfully!");
+                  } catch (err) {
+                    toast.error("Invalid JSON: " + err.message);
+                  }
+                }}
+                className={styles.beautifiedButtonSecondary}
+                style={{ padding: "8px 16px", fontSize: "0.9rem", marginRight: "auto" }}
+              >
+                Beautify
+              </button>
+              <Button
+                variant="secondary"
+                onClick={() => setEditingPayloadIndex(null)}
+              >
+                Cancel
+              </Button>
+              <button
+                type="button"
+                onClick={() => {
+                  const newList = [...form.payloadList];
+                  newList[editingPayloadIndex] = editingPayloadValue;
+                  handleInputChange("payloadList", newList);
+                  setEditingPayloadIndex(null);
+                }}
+                className={styles.beautifiedButtonPrimary}
+                style={{ padding: "8px 16px", fontSize: "0.9rem" }}
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
