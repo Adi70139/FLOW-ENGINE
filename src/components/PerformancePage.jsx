@@ -57,7 +57,7 @@ export default function PerformancePage() {
   const [rating, setRating] = useState(null);
 
   const sseRef = useRef(null);
-  const logsEndRef = useRef(null);
+  const logsTerminalRef = useRef(null);
 
   // Load history & apis on mount
   useEffect(() => {
@@ -72,8 +72,8 @@ export default function PerformancePage() {
 
   // Auto-scroll logs terminal
   useEffect(() => {
-    if (logsEndRef.current) {
-      logsEndRef.current.scrollIntoView({ behavior: "smooth" });
+    if (logsTerminalRef.current) {
+      logsTerminalRef.current.scrollTop = logsTerminalRef.current.scrollHeight;
     }
   }, [logLines]);
 
@@ -1136,11 +1136,10 @@ export default function PerformancePage() {
               {activeRunId && (
                 <div style={{ marginTop: "16px" }}>
                   <h4 style={{ margin: "0 0 6px 0", fontSize: "0.85rem", color: "var(--text-muted)" }}>SSE Event Stream Logs</h4>
-                  <div className={styles.logsTerminal}>
+                  <div className={styles.logsTerminal} ref={logsTerminalRef}>
                     {logLines.map((line, idx) => (
                       <div key={idx} className={styles.logLine}>{line}</div>
                     ))}
-                    <div ref={logsEndRef} />
                   </div>
                 </div>
               )}
