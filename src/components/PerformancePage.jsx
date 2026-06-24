@@ -13,6 +13,8 @@ const INITIAL_FORM = {
   method: "GET",
   headers: "{\n  \"Accept\": \"application/json\"\n}",
   body: "",
+  description: "",
+  payloadListStr: "",
   testType: "LOAD",
   virtualUsers: 5,
   durationSeconds: 15,
@@ -29,14 +31,20 @@ export default function PerformancePage() {
   const [history, setHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [selectedRun, setSelectedRun] = useState(null);
-  
+
+  // Saved APIs state
+  const [savedApis, setSavedApis] = useState([]);
+  const [loadingApis, setLoadingApis] = useState(false);
+  const [selectedApi, setSelectedApi] = useState(null);
+  const [viewMode, setViewMode] = useState("apis"); // "apis" or "history"
+
   // Sidebar state
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // Form fields
   const [form, setForm] = useState(INITIAL_FORM);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   // cURL import toggle and string
   const [showCurlInput, setShowCurlInput] = useState(false);
   const [curlString, setCurlString] = useState("");
@@ -51,11 +59,14 @@ export default function PerformancePage() {
   const sseRef = useRef(null);
   const logsEndRef = useRef(null);
 
-  // Load history on mount
+  // Load history & apis on mount
   useEffect(() => {
     fetchHistory();
+    fetchApis();
     return () => {
-      if (sseRef.current) sseRef.current.close();
+      if (sseRef.current && typeof sseRef.current.close === "function") {
+        sseRef.current.close();
+      }
     };
   }, []);
 
@@ -78,15 +89,27 @@ export default function PerformancePage() {
     }
   }
 
+  async function fetchApis() {
+    setLoadingApis(true);
+    try {
+      const data = await performanceApi.listApis();
+      setSavedApis(Array.isArray(data) ? data : []);
+    } catch (err) {
+      toast.error("Failed to load saved APIs: " + err.message);
+    } finally {
+      setLoadingApis(false);
+    }
+  }
+
   async function handleSelectRun(run) {
     setSelectedRun(run);
     setActiveRunId(null);
     setLiveStats(run);
     setRating(null);
     setSamples([]);
-    
+
     // Stop any active SSE
-    if (sseRef.current) {
+    if (sseRef.current && typeof sseRef.current.close === "function") {
       sseRef.current.close();
       sseRef.current = null;
     }
@@ -106,13 +129,25 @@ export default function PerformancePage() {
         hdrsStr = "{}";
       }
     }
-    
+
+    let payloadStr = "";
+    if (run.payloadListJson) {
+      try {
+        const arr = JSON.parse(run.payloadListJson);
+        payloadStr = Array.isArray(arr) ? arr.join("\n") : "";
+      } catch {
+        payloadStr = run.payloadListJson;
+      }
+    }
+
     setForm({
       name: run.name || "Performance Run",
       url: run.resolvedUrl || run.url || "",
       method: run.resolvedMethod || run.method || "GET",
       headers: hdrsStr,
       body: run.resolvedBodyJson || run.body || "",
+      description: "",
+      payloadListStr: payloadStr,
       testType: run.testType || "LOAD",
       virtualUsers: run.virtualUsers || 5,
       durationSeconds: run.durationSeconds || 15,
@@ -137,6 +172,103 @@ export default function PerformancePage() {
       }
     } catch (err) {
       console.error("Failed to load run details:", err);
+    }
+  }
+
+  function handleSelectApi(api) {
+    setSelectedApi(api);
+    
+    let hdrsStr = "{}";
+    if (api.headersJson) {
+      try {
+        hdrsStr = JSON.stringify(JSON.parse(api.headersJson), null, 2);
+      } catch {
+        hdrsStr = api.headersJson;
+      }
+    }
+
+    let payloadStr = "";
+    if (api.payloadListJson) {
+      try {
+        const arr = JSON.parse(api.payloadListJson);
+        payloadStr = Array.isArray(arr) ? arr.join("\n") : "";
+      } catch {
+        payloadStr = api.payloadListJson;
+      }
+    }
+
+    setForm((prev) => ({
+      ...prev,
+      name: api.name || "Performance Run",
+      url: api.url || "",
+      method: api.method || "GET",
+      headers: hdrsStr,
+      body: api.bodyJson || api.body || "",
+      description: api.description || "",
+      payloadListStr: payloadStr,
+    }));
+  }
+
+  function handleClearForm() {
+    setSelectedApi(null);
+    setForm(INITIAL_FORM);
+  }
+
+  async function handleSaveApi(e) {
+    e.preventDefault();
+    
+    // Parse headers
+    let parsedHeaders = {};
+    try {
+      if (form.headers.trim()) {
+        parsedHeaders = JSON.parse(form.headers);
+      }
+    } catch (err) {
+      toast.error("Invalid headers JSON: " + err.message);
+      return;
+    }
+
+    const payloadList = form.payloadListStr
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+
+    const apiPayload = {
+      name: form.name,
+      description: form.description,
+      url: form.url,
+      method: form.method,
+      headers: parsedHeaders,
+      body: form.body || null,
+      payloadList: payloadList,
+    };
+
+    try {
+      if (selectedApi) {
+        const updated = await performanceApi.updateApi(selectedApi.id, apiPayload);
+        toast.success("API configuration updated successfully!");
+        fetchApis();
+        if (updated) setSelectedApi(updated);
+      } else {
+        const created = await performanceApi.createApi(apiPayload);
+        toast.success("API configuration saved successfully!");
+        fetchApis();
+        if (created) setSelectedApi(created);
+      }
+    } catch (err) {
+      toast.error("Failed to save API: " + err.message);
+    }
+  }
+
+  async function handleDeleteApi(apiId) {
+    if (!window.confirm("Are you sure you want to delete this API config?")) return;
+    try {
+      await performanceApi.deleteApi(apiId);
+      toast.success("API configuration deleted successfully!");
+      handleClearForm();
+      fetchApis();
+    } catch (err) {
+      toast.error("Failed to delete API: " + err.message);
     }
   }
 
@@ -202,11 +334,16 @@ export default function PerformancePage() {
     }
 
     const payload = {
+      apiId: selectedApi?.id || null,
       name: form.name,
       url: form.url,
       method: form.method,
       headers: parsedHeaders,
       body: form.body || null,
+      payloadList: form.payloadListStr
+        .split("\n")
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0),
       testType: form.testType,
       virtualUsers: parseInt(form.virtualUsers) || 1,
       durationSeconds: parseInt(form.durationSeconds) || 5,
@@ -236,90 +373,120 @@ export default function PerformancePage() {
   }
 
   function setupSse(runId) {
-    if (sseRef.current) {
+    if (sseRef.current && typeof sseRef.current.close === "function") {
       sseRef.current.close();
     }
 
     const url = performanceApi.getStreamUrl(runId);
-    const source = new EventSource(url);
-    sseRef.current = source;
+    const token = performanceApi.getAuthToken();
+    const controller = new AbortController();
+    const { signal } = controller;
+
+    sseRef.current = {
+      close: () => controller.abort()
+    };
 
     const addLog = (type, message) => {
       const time = new Date().toLocaleTimeString();
       setLogLines((prev) => [...prev, `[${time}] [${type.toUpperCase()}] ${message}`]);
     };
 
-    source.addEventListener("status", (e) => {
-      addLog("status", e.data);
-    });
-
-    source.addEventListener("progress", (e) => {
-      try {
-        const stats = JSON.parse(e.data);
-        setLiveStats((prev) => ({ ...prev, ...stats }));
-        addLog("progress", `RPS: ${stats.throughputRps?.toFixed(1) || 0} | Latency: ${stats.avgLatencyMs?.toFixed(1) || 0}ms | Errors: ${stats.failedRequests || 0}`);
-      } catch {
-        addLog("progress", e.data);
-      }
-    });
-
-    source.addEventListener("ramp", (e) => {
-      addLog("ramp", e.data);
-    });
-
-    source.addEventListener("phase", (e) => {
-      addLog("phase", e.data);
-    });
-
-    source.addEventListener("breaking_point", (e) => {
-      addLog("breaking", `Stress breaking point identified: ${e.data}`);
-    });
-
-    source.addEventListener("window_stats", (e) => {
-      try {
-        const win = JSON.parse(e.data);
-        addLog("window", `Window Avg Latency: ${win.avgLatencyMs?.toFixed(1)}ms | RPS: ${win.throughputRps?.toFixed(1)}`);
-      } catch {
-        addLog("window", e.data);
-      }
-    });
-
-    source.addEventListener("completed", async (e) => {
-      addLog("completed", "Test finished! Retrieving final reports.");
-      source.close();
-      sseRef.current = null;
-      setActiveRunId(null);
-      
-      // Refresh list & load details
-      fetchHistory();
-      try {
-        const finalRun = await performanceApi.getResult(runId);
-        setSelectedRun(finalRun);
-        setLiveStats(finalRun);
-        const sampleData = await performanceApi.getSamples(runId);
-        setSamples(Array.isArray(sampleData) ? sampleData : []);
-        const ratingData = await performanceApi.rate(runId);
-        setRating(ratingData);
-      } catch (err) {
-        console.error("Failed to load completed report info:", err);
-      }
-    });
-
-    source.addEventListener("error", (e) => {
-      addLog("error", "SSE Stream closed or error occurred.");
-      source.close();
-      sseRef.current = null;
-      setActiveRunId(null);
-      fetchHistory();
-    });
-
-    source.onerror = (err) => {
-      addLog("error", "Connection error. Closing stream.");
-      source.close();
-      sseRef.current = null;
-      setActiveRunId(null);
-      fetchHistory();
+    const headers = {
+      "Accept": "text/event-stream",
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
     };
+
+    fetch(url, { headers, signal })
+      .then(async (response) => {
+        if (!response.ok) {
+          addLog("error", `Forbidden or Error: ${response.status}`);
+          setActiveRunId(null);
+          fetchHistory();
+          return;
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const messages = buffer.split("\n\n");
+          buffer = messages.pop();
+
+          for (const msg of messages) {
+            if (!msg.trim()) continue;
+
+            let event = "message";
+            let data = "";
+
+            const lines = msg.split("\n");
+            for (const line of lines) {
+              if (line.startsWith("event:")) {
+                event = line.replace("event:", "").trim();
+              } else if (line.startsWith("data:")) {
+                data = line.replace("data:", "").trim();
+              }
+            }
+
+            if (event === "status") {
+              addLog("status", data);
+            } else if (event === "progress") {
+              try {
+                const stats = JSON.parse(data);
+                setLiveStats((prev) => ({ ...prev, ...stats }));
+                addLog("progress", `RPS: ${stats.throughputRps?.toFixed(1) || 0} | Latency: ${stats.avgLatencyMs?.toFixed(1) || 0}ms | Errors: ${stats.failedRequests || 0}`);
+              } catch {
+                addLog("progress", data);
+              }
+            } else if (event === "ramp") {
+              addLog("ramp", data);
+            } else if (event === "phase") {
+              addLog("phase", data);
+            } else if (event === "breaking_point") {
+              addLog("breaking", `Stress breaking point identified: ${data}`);
+            } else if (event === "window_stats") {
+              try {
+                const win = JSON.parse(data);
+                addLog("window", `Window Avg Latency: ${win.avgLatencyMs?.toFixed(1)}ms | RPS: ${win.throughputRps?.toFixed(1)}`);
+              } catch {
+                addLog("window", data);
+              }
+            } else if (event === "completed") {
+              addLog("completed", "Test finished! Retrieving final reports.");
+              controller.abort();
+              setActiveRunId(null);
+              fetchHistory();
+              try {
+                const finalRun = await performanceApi.getResult(runId);
+                setSelectedRun(finalRun);
+                setLiveStats(finalRun);
+                const sampleData = await performanceApi.getSamples(runId);
+                setSamples(Array.isArray(sampleData) ? sampleData : []);
+                const ratingData = await performanceApi.rate(runId);
+                setRating(ratingData);
+              } catch (err) {
+                console.error("Failed to load completed report info:", err);
+              }
+            } else if (event === "error") {
+              addLog("error", data || "Error event received from server.");
+              controller.abort();
+              setActiveRunId(null);
+              fetchHistory();
+            }
+          }
+        }
+      })
+      .catch((err) => {
+        if (err.name !== "AbortError") {
+          addLog("error", "Stream error: " + err.message);
+          setActiveRunId(null);
+          fetchHistory();
+        }
+      });
   }
 
   async function handleCancel() {
@@ -423,7 +590,7 @@ export default function PerformancePage() {
 
   return (
     <div className={styles.container}>
-      {/* Collapsible Left Sidebar for Run History */}
+      {/* Collapsible Left Sidebar for Saved APIs or Run History */}
       <div className={`${styles.sidebar} ${isSidebarCollapsed ? styles.sidebarCollapsed : ""}`}>
         {isSidebarCollapsed ? (
           <div className={styles.sidebarCollapsedContent}>
@@ -431,20 +598,39 @@ export default function PerformancePage() {
               type="button"
               className={styles.sidebarExpandAction}
               onClick={() => setIsSidebarCollapsed(false)}
-              title="Expand History"
+              title="Expand Sidebar"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="13 17 18 12 13 7" />
                 <polyline points="6 17 11 12 6 7" />
               </svg>
             </button>
-            <div className={styles.collapsedRotatedText}>RUN HISTORY</div>
+            <button
+              type="button"
+              className={styles.sidebarExpandAction}
+              onClick={() => setViewMode(viewMode === "apis" ? "history" : "apis")}
+              title={viewMode === "apis" ? "Switch to Run History" : "Switch to Saved APIs"}
+            >
+              {viewMode === "apis" ? (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
+              ) : (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                </svg>
+              )}
+            </button>
+            <div className={styles.collapsedRotatedText}>
+              {viewMode === "apis" ? "SAVED APIS" : "RUN HISTORY"}
+            </div>
             <Button
               variant="secondary"
               size="small"
-              onClick={fetchHistory}
-              disabled={loadingHistory}
-              title="Refresh History"
+              onClick={viewMode === "apis" ? fetchApis : fetchHistory}
+              disabled={viewMode === "apis" ? loadingApis : loadingHistory}
+              title="Refresh"
               style={{ padding: "4px 8px" }}
             >
               🔄
@@ -453,16 +639,40 @@ export default function PerformancePage() {
         ) : (
           <div className={styles.sidebarContent}>
             <div className={styles.sidebarHeader}>
-              <h3 style={{ margin: 0 }}>Run History</h3>
+              <h3 style={{ margin: 0 }}>{viewMode === "apis" ? "Saved APIs" : "Run History"}</h3>
               <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                <Button variant="secondary" size="small" onClick={fetchHistory} disabled={loadingHistory}>
+                <Button
+                  variant="secondary"
+                  size="small"
+                  onClick={viewMode === "apis" ? fetchApis : fetchHistory}
+                  disabled={viewMode === "apis" ? loadingApis : loadingHistory}
+                >
                   Refresh
                 </Button>
+                {/* Clock / History / API Icon Toggle */}
+                <button
+                  type="button"
+                  className={styles.sidebarCollapseAction}
+                  onClick={() => setViewMode(viewMode === "apis" ? "history" : "apis")}
+                  title={viewMode === "apis" ? "Show Run History" : "Show Saved APIs"}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "28px", height: "28px", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)" }}
+                >
+                  {viewMode === "apis" ? (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" title="Show History">
+                      <circle cx="12" cy="12" r="10" />
+                      <polyline points="12 6 12 12 16 14" />
+                    </svg>
+                  ) : (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" title="Show Saved APIs">
+                      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                    </svg>
+                  )}
+                </button>
                 <button
                   type="button"
                   className={styles.sidebarCollapseAction}
                   onClick={() => setIsSidebarCollapsed(true)}
-                  title="Collapse History"
+                  title="Collapse Sidebar"
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="11 17 6 12 11 7" />
@@ -472,33 +682,72 @@ export default function PerformancePage() {
               </div>
             </div>
 
-            <div className={styles.historyList}>
-              {loadingHistory && <div style={{ textAlign: "center", padding: "20px" }}>Loading runs...</div>}
-              {!loadingHistory && history.length === 0 && (
-                <div style={{ textAlign: "center", color: "var(--text-muted)", padding: "20px" }}>
-                  No performance test runs found.
-                </div>
-              )}
-              {!loadingHistory && history.map((run) => (
-                <div
-                  key={run.id}
-                  className={`${styles.historyItem} ${selectedRun?.id === run.id ? styles.historyItemActive : ""}`}
-                  onClick={() => handleSelectRun(run)}
-                >
-                  <div className={styles.historyHeader}>
-                    <span>{run.name || `Run #${run.id}`}</span>
-                    <span className={`${styles.badge} ${getBadgeClass(run.status)}`}>
-                      {run.status}
-                    </span>
+            {/* List based on viewMode */}
+            {viewMode === "apis" ? (
+              <div className={styles.historyList}>
+                {loadingApis && <div style={{ textAlign: "center", padding: "20px" }}>Loading APIs...</div>}
+                {!loadingApis && savedApis.length === 0 && (
+                  <div style={{ textAlign: "center", color: "var(--text-muted)", padding: "20px" }}>
+                    No saved API configs found. Create and save one!
                   </div>
-                  <div className={styles.historyUrl}>{run.resolvedMethod} {run.resolvedUrl}</div>
-                  <div className={styles.historyMeta}>
-                    <span>VUs: {run.virtualUsers}</span>
-                    <span>{run.startedAt ? new Date(run.startedAt).toLocaleString() : ""}</span>
+                )}
+                {!loadingApis && savedApis.map((api) => (
+                  <div
+                    key={api.id}
+                    className={`${styles.historyItem} ${selectedApi?.id === api.id ? styles.historyItemActive : ""}`}
+                    onClick={() => handleSelectApi(api)}
+                  >
+                    <div className={styles.historyHeader}>
+                      <span style={{ fontWeight: "600", fontSize: "0.95rem" }}>{api.name}</span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteApi(api.id);
+                        }}
+                        style={{ background: "transparent", border: "none", color: "var(--status-error, #ef4444)", cursor: "pointer", fontSize: "0.9rem" }}
+                        title="Delete saved config"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                    {api.description && (
+                      <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: 4 }}>
+                        {api.description}
+                      </div>
+                    )}
+                    <div className={styles.historyUrl}>{api.method} {api.url}</div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className={styles.historyList}>
+                {loadingHistory && <div style={{ textAlign: "center", padding: "20px" }}>Loading runs...</div>}
+                {!loadingHistory && history.length === 0 && (
+                  <div style={{ textAlign: "center", color: "var(--text-muted)", padding: "20px" }}>
+                    No performance test runs found.
+                  </div>
+                )}
+                {!loadingHistory && history.map((run) => (
+                  <div
+                    key={run.id}
+                    className={`${styles.historyItem} ${selectedRun?.id === run.id ? styles.historyItemActive : ""}`}
+                    onClick={() => handleSelectRun(run)}
+                  >
+                    <div className={styles.historyHeader}>
+                      <span>{run.name || `Run #${run.id}`}</span>
+                      <span className={`${styles.badge} ${getBadgeClass(run.status)}`}>
+                        {run.status}
+                      </span>
+                    </div>
+                    <div className={styles.historyUrl}>{run.resolvedMethod} {run.resolvedUrl}</div>
+                    <div className={styles.historyMeta}>
+                      <span>VUs: {run.virtualUsers}</span>
+                      <span>{run.startedAt ? new Date(run.startedAt).toLocaleString() : ""}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -515,13 +764,20 @@ export default function PerformancePage() {
               </svg>
               Performance Tester
             </h2>
-            <Button
-              variant="secondary"
-              size="small"
-              onClick={() => setShowCurlInput((prev) => !prev)}
-            >
-              {showCurlInput ? "Show Config" : "Import cURL"}
-            </Button>
+            <div style={{ display: "flex", gap: "6px" }}>
+              {selectedApi && (
+                <Button variant="secondary" size="small" onClick={handleClearForm}>
+                  New / Clear
+                </Button>
+              )}
+              <Button
+                variant="secondary"
+                size="small"
+                onClick={() => setShowCurlInput((prev) => !prev)}
+              >
+                {showCurlInput ? "Show Config" : "Import cURL"}
+              </Button>
+            </div>
           </div>
 
           {showCurlInput ? (
@@ -545,6 +801,12 @@ export default function PerformancePage() {
             </div>
           ) : (
             <form onSubmit={handleSubmit} className={styles.form}>
+              {selectedApi && (
+                <div style={{ background: "var(--accent-glow, rgba(16, 185, 129, 0.05))", border: "1px solid var(--accent)", borderRadius: "var(--radius-sm)", padding: "8px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem" }}>
+                  <span>Editing saved config: <strong>{selectedApi.name}</strong></span>
+                  <button type="button" onClick={handleClearForm} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", textDecoration: "underline" }}>Deselect</button>
+                </div>
+              )}
               <Input
                 label="Test Name"
                 value={form.name}
@@ -552,7 +814,14 @@ export default function PerformancePage() {
                 placeholder="e.g. Load Test Customer Endpoint"
                 required
               />
-              
+
+              <Input
+                label="Description"
+                value={form.description}
+                onChange={(e) => handleInputChange("description", e.target.value)}
+                placeholder="Description of the API configuration"
+              />
+
               <div className={styles.formGrid}>
                 <div className={styles.formGroup}>
                   <label className={styles.label}>HTTP Method</label>
@@ -611,6 +880,15 @@ export default function PerformancePage() {
                   mono
                 />
               )}
+
+              <Textarea
+                label="Payload List (One entry per line for virtual users)"
+                value={form.payloadListStr}
+                onChange={(e) => handleInputChange("payloadListStr", e.target.value)}
+                placeholder="Payload 1&#10;Payload 2&#10;Payload 3"
+                rows={3}
+                mono
+              />
 
               <div className={styles.formGrid}>
                 <Input
@@ -673,14 +951,24 @@ export default function PerformancePage() {
                 />
               )}
 
-              <Button
-                type="submit"
-                variant="primary"
-                disabled={isSubmitting || !!activeRunId}
-                fullWidth
-              >
-                {isSubmitting ? "Starting..." : activeRunId ? "Test In Progress" : "Run Performance Test"}
-              </Button>
+              <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={handleSaveApi}
+                  style={{ flex: 1 }}
+                >
+                  {selectedApi ? "Update Saved API" : "Save API Config"}
+                </Button>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  disabled={isSubmitting || !!activeRunId}
+                  style={{ flex: 1.5 }}
+                >
+                  {isSubmitting ? "Starting..." : activeRunId ? "Test In Progress" : "Run Performance Test"}
+                </Button>
+              </div>
             </form>
           )}
         </div>
@@ -728,6 +1016,16 @@ export default function PerformancePage() {
                   </div>
                   <div className={styles.progressBarBg}>
                     <div className={styles.progressBarFill} style={{ width: "100%" }} />
+                  </div>
+                </div>
+              )}
+
+              {/* Display Error Summary if present */}
+              {liveStats.errorSummary && (
+                <div style={{ background: "#fef2f2", color: "#991b1b", padding: "12px", borderRadius: "var(--radius-sm)", marginBottom: "16px", fontSize: "0.9rem", border: "1px solid #fee2e2" }}>
+                  <strong>Error Summary:</strong>
+                  <div style={{ marginTop: 4, whiteSpace: "pre-wrap", fontFamily: "var(--font-mono)", fontSize: "0.82rem", background: "rgba(255,255,255,0.5)", padding: "8px", borderRadius: "4px" }}>
+                    {liveStats.errorSummary}
                   </div>
                 </div>
               )}
@@ -798,7 +1096,16 @@ export default function PerformancePage() {
                     <span style={{ fontSize: "0.85rem", fontWeight: "500" }}>RPS: {rating.throughputRps?.toFixed(1) || 0}</span>
                   </div>
                   <p style={{ margin: "4px 0 12px 0", fontSize: "0.9rem" }}>{rating.summary}</p>
-                  
+
+                  {rating.errorSummary && (
+                    <div style={{ background: "rgba(255,255,255,0.6)", padding: "10px", borderRadius: "4px", marginBottom: "12px", borderLeft: "4px solid var(--status-error, #ef4444)" }}>
+                      <strong>Rating Error Summary:</strong>
+                      <div style={{ marginTop: 4, fontFamily: "var(--font-mono)", fontSize: "0.8rem", whiteSpace: "pre-wrap" }}>
+                        {rating.errorSummary}
+                      </div>
+                    </div>
+                  )}
+
                   <div className={styles.ratingLists}>
                     <div className={styles.ratingList}>
                       <span className={styles.ratingListTitle}>👍 Strengths</span>

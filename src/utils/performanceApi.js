@@ -42,6 +42,7 @@ async function request(path, options = {}) {
 
 export const performanceApi = {
   getApiBaseUrl: () => BASE_URL,
+  getAuthToken,
 
   /** POST /performance/run */
   start: (requestBody) =>
@@ -74,4 +75,33 @@ export const performanceApi = {
 
   /** Returns connection details for the SSE stream */
   getStreamUrl: (runId) => `${BASE_URL}/performance/${runId}/stream`,
+
+  /** GET /performance/apis */
+  listApis: () =>
+    request("/performance/apis"),
+
+  /** GET /performance/apis/{id} */
+  getApiById: (id) =>
+    request(`/performance/apis/${id}`),
+
+  /** POST /performance/apis */
+  createApi: (apiData) =>
+    request("/performance/apis", {
+      method: "POST",
+      body: JSON.stringify(apiData),
+    }),
+
+  /** PUT /performance/apis/{id} */
+  updateApi: (id, apiData) =>
+    request(`/performance/apis/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(apiData),
+    }),
+
+  /** DELETE /performance/apis/{id} */
+  deleteApi: (id) =>
+    request(`/performance/apis/${id}`, {
+      method: "DELETE",
+    }),
 };
+
