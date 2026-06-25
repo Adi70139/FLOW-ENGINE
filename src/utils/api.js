@@ -237,6 +237,7 @@ export const mapTestToStep = (test) => ({
   pollIntervalMs: typeof test.pollIntervalMs === "number" ? test.pollIntervalMs : (parseInt(test.pollIntervalMs) || 0),
   pollMaxAttempts: typeof test.pollMaxAttempts === "number" ? test.pollMaxAttempts : (parseInt(test.pollMaxAttempts) || 0),
   pollExpectedStatus: typeof test.pollExpectedStatus === "number" ? test.pollExpectedStatus : (parseInt(test.pollExpectedStatus) || 0),
+  pollConditionJson: test.pollConditionJson || null,
 });
 
 /** Backend Step → Frontend Test shape */
@@ -294,6 +295,7 @@ export const mapStepToTest = (step) => {
     pollIntervalMs: step.pollIntervalMs || 0,
     pollMaxAttempts: step.pollMaxAttempts || 0,
     pollExpectedStatus: step.pollExpectedStatus || 0,
+    pollConditionJson: step.pollConditionJson || (step.pollCondition ? (typeof step.pollCondition === "string" ? step.pollCondition : JSON.stringify(step.pollCondition)) : null),
     payloadVariants: Array.isArray(step.payloadVariants) ? step.payloadVariants : [],
     response: cachedResponse,
   };

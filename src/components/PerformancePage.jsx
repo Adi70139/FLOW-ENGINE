@@ -9,7 +9,9 @@ import styles from "./PerformancePage.module.css";
 
 const INITIAL_FORM = {
   name: "Performance Run",
-  url: "http://localhost:8070",
+  url: import.meta.env.PROD
+    ? "https://flow-engine-perf.onrender.com"
+    : "http://localhost:8070",
   method: "GET",
   headers: "{\n  \"Accept\": \"application/json\"\n}",
   body: "",

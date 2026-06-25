@@ -1,4 +1,8 @@
-const BASE_URL = "http://localhost:8070";
+const BASE_URL =
+  import.meta.env.VITE_PERFORMANCE_API_BASE_URL?.replace(/\/$/, "") ||
+  (import.meta.env.PROD
+    ? "https://flow-engine-perf.onrender.com"
+    : "http://localhost:8070");
 
 function getAuthToken() {
   try {
