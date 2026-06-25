@@ -390,8 +390,25 @@ function CreateStepModal({ onClose, flowId, addStep }) {
   const [pollIntervalMs, setPollIntervalMs] = useState(1000);
   const [pollMaxAttempts, setPollMaxAttempts] = useState(5);
   const [pollExpectedStatus, setPollExpectedStatus] = useState(200);
+  const [pollConditionLogic, setPollConditionLogic] = useState("AND");
+  const [pollConditions, setPollConditions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  function addPollConditionCreate() {
+    setPollConditions(prev => [...prev, { path: "", operator: "equals", value: "" }]);
+  }
+  function removePollConditionCreate(idx) {
+    setPollConditions(prev => prev.filter((_, i) => i !== idx));
+  }
+  function updatePollConditionCreate(idx, field, val) {
+    setPollConditions(prev => prev.map((c, i) => i === idx ? { ...c, [field]: val } : c));
+  }
+  function buildPollConditionJsonCreate() {
+    const valid = pollConditions.filter(c => c.path.trim());
+    if (valid.length === 0) return null;
+    return JSON.stringify({ logic: pollConditionLogic, conditions: valid.map(c => ({ path: c.path.trim(), operator: c.operator, value: c.value })) });
+  }
 
   async function handleCreate() {
     if (!name.trim()) return;
@@ -438,6 +455,7 @@ function CreateStepModal({ onClose, flowId, addStep }) {
         pollIntervalMs: pollIntervalMs,
         pollMaxAttempts: pollMaxAttempts,
         pollExpectedStatus: pollExpectedStatus,
+        pollConditionJson: buildPollConditionJsonCreate(),
       });
       onClose();
     } catch (err) {
@@ -530,46 +548,108 @@ function CreateStepModal({ onClose, flowId, addStep }) {
         </div>
 
         {pollUntilSuccess && (
-          <div style={{ display: "flex", gap: "16px" }}>
-            <div style={{ flex: 1 }}>
-              <Input
-                type="number"
-                min="1"
-                label="Poll Interval (ms)"
-                placeholder="e.g. 1000"
-                value={pollIntervalMs}
-                onChange={(e) => {
-                  setPollIntervalMs(parseInt(e.target.value) || 0);
-                  setError("");
-                }}
-              />
+          <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+            <div style={{ display: "flex", gap: "16px" }}>
+              <div style={{ flex: 1 }}>
+                <Input
+                  type="number"
+                  min="1"
+                  label="Poll Interval (ms)"
+                  placeholder="e.g. 1000"
+                  value={pollIntervalMs}
+                  onChange={(e) => { setPollIntervalMs(parseInt(e.target.value) || 0); setError(""); }}
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <Input
+                  type="number"
+                  min="1"
+                  label="Max Poll Attempts"
+                  placeholder="e.g. 5"
+                  value={pollMaxAttempts}
+                  onChange={(e) => { setPollMaxAttempts(parseInt(e.target.value) || 0); setError(""); }}
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <Input
+                  type="number"
+                  min="100"
+                  max="599"
+                  label="Expected Status"
+                  placeholder="e.g. 200"
+                  value={pollExpectedStatus}
+                  onChange={(e) => { setPollExpectedStatus(parseInt(e.target.value) || 0); setError(""); }}
+                />
+              </div>
             </div>
-            <div style={{ flex: 1 }}>
-              <Input
-                type="number"
-                min="1"
-                label="Max Poll Attempts"
-                placeholder="e.g. 5"
-                value={pollMaxAttempts}
-                onChange={(e) => {
-                  setPollMaxAttempts(parseInt(e.target.value) || 0);
-                  setError("");
-                }}
-              />
-            </div>
-            <div style={{ flex: 1 }}>
-              <Input
-                type="number"
-                min="100"
-                max="599"
-                label="Expected Status"
-                placeholder="e.g. 200"
-                value={pollExpectedStatus}
-                onChange={(e) => {
-                  setPollExpectedStatus(parseInt(e.target.value) || 0);
-                  setError("");
-                }}
-              />
+
+            {/* Poll Body Condition */}
+            <div style={{ background: "var(--bg-tertiary, rgba(255,255,255,0.03))", border: "1px solid var(--border-color)", borderRadius: "10px", padding: "14px", display: "flex", flexDirection: "column", gap: "10px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-primary)" }}>Body Condition (optional)</span>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>Logic:</span>
+                  <select
+                    value={pollConditionLogic}
+                    onChange={(e) => setPollConditionLogic(e.target.value)}
+                    style={{ fontSize: "12px", padding: "3px 8px", borderRadius: "6px", border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", cursor: "pointer" }}
+                  >
+                    <option value="AND">AND — all must match</option>
+                    <option value="OR">OR — any must match</option>
+                  </select>
+                </div>
+              </div>
+              <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0 }}>Stop polling when the response body also satisfies these conditions (in addition to the status code).</p>
+              {pollConditions.map((cond, idx) => (
+                <div key={idx} style={{ display: "flex", gap: "8px", alignItems: "flex-end" }}>
+                  <div style={{ flex: 2 }}>
+                    <label style={{ fontSize: "11px", color: "var(--text-muted)", display: "block", marginBottom: "4px" }}>JSON Path</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. status or order.state"
+                      value={cond.path}
+                      onChange={(e) => updatePollConditionCreate(idx, "path", e.target.value)}
+                      style={{ width: "100%", padding: "7px 10px", borderRadius: "7px", border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: "13px", boxSizing: "border-box" }}
+                    />
+                  </div>
+                  <div style={{ flex: 1.5 }}>
+                    <label style={{ fontSize: "11px", color: "var(--text-muted)", display: "block", marginBottom: "4px" }}>Operator</label>
+                    <select
+                      value={cond.operator}
+                      onChange={(e) => updatePollConditionCreate(idx, "operator", e.target.value)}
+                      style={{ width: "100%", padding: "7px 10px", borderRadius: "7px", border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: "13px" }}
+                    >
+                      <option value="equals">equals</option>
+                      <option value="notEquals">not equals</option>
+                      <option value="contains">contains</option>
+                      <option value="greaterThan">greater than</option>
+                      <option value="lessThan">less than</option>
+                      <option value="exists">exists</option>
+                      <option value="in">in (list)</option>
+                    </select>
+                  </div>
+                  <div style={{ flex: 2 }}>
+                    <label style={{ fontSize: "11px", color: "var(--text-muted)", display: "block", marginBottom: "4px" }}>Value</label>
+                    <input
+                      type="text"
+                      placeholder={cond.operator === "exists" ? "(not needed)" : "e.g. COMPLETED"}
+                      value={cond.value}
+                      disabled={cond.operator === "exists"}
+                      onChange={(e) => updatePollConditionCreate(idx, "value", e.target.value)}
+                      style={{ width: "100%", padding: "7px 10px", borderRadius: "7px", border: "1px solid var(--border-color)", background: cond.operator === "exists" ? "var(--bg-tertiary)" : "var(--bg-secondary)", color: "var(--text-primary)", fontSize: "13px", boxSizing: "border-box", opacity: cond.operator === "exists" ? 0.5 : 1 }}
+                    />
+                  </div>
+                  <button
+                    onClick={() => removePollConditionCreate(idx)}
+                    style={{ padding: "7px 10px", borderRadius: "7px", border: "1px solid var(--border-color)", background: "transparent", color: "var(--status-error)", cursor: "pointer", fontSize: "16px", lineHeight: 1, flexShrink: 0 }}
+                    title="Remove condition"
+                  >×</button>
+                </div>
+              ))}
+              <button
+                onClick={addPollConditionCreate}
+                style={{ alignSelf: "flex-start", padding: "6px 14px", borderRadius: "7px", border: "1px dashed var(--border-color)", background: "transparent", color: "var(--accent-primary)", cursor: "pointer", fontSize: "12px", fontWeight: "600" }}
+              >+ Add Condition</button>
             </div>
           </div>
         )}
@@ -601,6 +681,28 @@ function UpdateStepModal({ step, flowId, updateStep, onClose }) {
   const [pollExpectedStatus, setPollExpectedStatus] = useState(step.pollExpectedStatus || 200);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Parse existing pollConditionJson if present
+  const parsedPollCond = (() => {
+    try { return step.pollConditionJson ? JSON.parse(step.pollConditionJson) : null; } catch { return null; }
+  })();
+  const [pollConditionLogic, setPollConditionLogic] = useState(parsedPollCond?.logic || "AND");
+  const [pollConditions, setPollConditions] = useState(parsedPollCond?.conditions || []);
+
+  function addPollConditionUpdate() {
+    setPollConditions(prev => [...prev, { path: "", operator: "equals", value: "" }]);
+  }
+  function removePollConditionUpdate(idx) {
+    setPollConditions(prev => prev.filter((_, i) => i !== idx));
+  }
+  function updatePollConditionUpdate(idx, field, val) {
+    setPollConditions(prev => prev.map((c, i) => i === idx ? { ...c, [field]: val } : c));
+  }
+  function buildPollConditionJsonUpdate() {
+    const valid = pollConditions.filter(c => c.path.trim());
+    if (valid.length === 0) return null;
+    return JSON.stringify({ logic: pollConditionLogic, conditions: valid.map(c => ({ path: c.path.trim(), operator: c.operator, value: c.value })) });
+  }
 
   async function handleSave() {
     if (!name.trim()) return;
@@ -643,6 +745,7 @@ function UpdateStepModal({ step, flowId, updateStep, onClose }) {
         pollIntervalMs: pollIntervalMs,
         pollMaxAttempts: pollMaxAttempts,
         pollExpectedStatus: pollExpectedStatus,
+        pollConditionJson: buildPollConditionJsonUpdate(),
       });
       toast.success("Step updated");
       onClose();
@@ -736,46 +839,108 @@ function UpdateStepModal({ step, flowId, updateStep, onClose }) {
         </div>
 
         {pollUntilSuccess && (
-          <div style={{ display: "flex", gap: "16px" }}>
-            <div style={{ flex: 1 }}>
-              <Input
-                type="number"
-                min="1"
-                label="Poll Interval (ms)"
-                placeholder="e.g. 1000"
-                value={pollIntervalMs}
-                onChange={(e) => {
-                  setPollIntervalMs(parseInt(e.target.value) || 0);
-                  setError("");
-                }}
-              />
+          <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+            <div style={{ display: "flex", gap: "16px" }}>
+              <div style={{ flex: 1 }}>
+                <Input
+                  type="number"
+                  min="1"
+                  label="Poll Interval (ms)"
+                  placeholder="e.g. 1000"
+                  value={pollIntervalMs}
+                  onChange={(e) => { setPollIntervalMs(parseInt(e.target.value) || 0); setError(""); }}
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <Input
+                  type="number"
+                  min="1"
+                  label="Max Poll Attempts"
+                  placeholder="e.g. 5"
+                  value={pollMaxAttempts}
+                  onChange={(e) => { setPollMaxAttempts(parseInt(e.target.value) || 0); setError(""); }}
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <Input
+                  type="number"
+                  min="100"
+                  max="599"
+                  label="Expected Status"
+                  placeholder="e.g. 200"
+                  value={pollExpectedStatus}
+                  onChange={(e) => { setPollExpectedStatus(parseInt(e.target.value) || 0); setError(""); }}
+                />
+              </div>
             </div>
-            <div style={{ flex: 1 }}>
-              <Input
-                type="number"
-                min="1"
-                label="Max Poll Attempts"
-                placeholder="e.g. 5"
-                value={pollMaxAttempts}
-                onChange={(e) => {
-                  setPollMaxAttempts(parseInt(e.target.value) || 0);
-                  setError("");
-                }}
-              />
-            </div>
-            <div style={{ flex: 1 }}>
-              <Input
-                type="number"
-                min="100"
-                max="599"
-                label="Expected Status"
-                placeholder="e.g. 200"
-                value={pollExpectedStatus}
-                onChange={(e) => {
-                  setPollExpectedStatus(parseInt(e.target.value) || 0);
-                  setError("");
-                }}
-              />
+
+            {/* Poll Body Condition */}
+            <div style={{ background: "var(--bg-tertiary, rgba(255,255,255,0.03))", border: "1px solid var(--border-color)", borderRadius: "10px", padding: "14px", display: "flex", flexDirection: "column", gap: "10px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-primary)" }}>Body Condition (optional)</span>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>Logic:</span>
+                  <select
+                    value={pollConditionLogic}
+                    onChange={(e) => setPollConditionLogic(e.target.value)}
+                    style={{ fontSize: "12px", padding: "3px 8px", borderRadius: "6px", border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", cursor: "pointer" }}
+                  >
+                    <option value="AND">AND — all must match</option>
+                    <option value="OR">OR — any must match</option>
+                  </select>
+                </div>
+              </div>
+              <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0 }}>Stop polling when the response body also satisfies these conditions (in addition to the status code).</p>
+              {pollConditions.map((cond, idx) => (
+                <div key={idx} style={{ display: "flex", gap: "8px", alignItems: "flex-end" }}>
+                  <div style={{ flex: 2 }}>
+                    <label style={{ fontSize: "11px", color: "var(--text-muted)", display: "block", marginBottom: "4px" }}>JSON Path</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. status or order.state"
+                      value={cond.path}
+                      onChange={(e) => updatePollConditionUpdate(idx, "path", e.target.value)}
+                      style={{ width: "100%", padding: "7px 10px", borderRadius: "7px", border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: "13px", boxSizing: "border-box" }}
+                    />
+                  </div>
+                  <div style={{ flex: 1.5 }}>
+                    <label style={{ fontSize: "11px", color: "var(--text-muted)", display: "block", marginBottom: "4px" }}>Operator</label>
+                    <select
+                      value={cond.operator}
+                      onChange={(e) => updatePollConditionUpdate(idx, "operator", e.target.value)}
+                      style={{ width: "100%", padding: "7px 10px", borderRadius: "7px", border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: "13px" }}
+                    >
+                      <option value="equals">equals</option>
+                      <option value="notEquals">not equals</option>
+                      <option value="contains">contains</option>
+                      <option value="greaterThan">greater than</option>
+                      <option value="lessThan">less than</option>
+                      <option value="exists">exists</option>
+                      <option value="in">in (list)</option>
+                    </select>
+                  </div>
+                  <div style={{ flex: 2 }}>
+                    <label style={{ fontSize: "11px", color: "var(--text-muted)", display: "block", marginBottom: "4px" }}>Value</label>
+                    <input
+                      type="text"
+                      placeholder={cond.operator === "exists" ? "(not needed)" : "e.g. COMPLETED"}
+                      value={cond.value}
+                      disabled={cond.operator === "exists"}
+                      onChange={(e) => updatePollConditionUpdate(idx, "value", e.target.value)}
+                      style={{ width: "100%", padding: "7px 10px", borderRadius: "7px", border: "1px solid var(--border-color)", background: cond.operator === "exists" ? "var(--bg-tertiary)" : "var(--bg-secondary)", color: "var(--text-primary)", fontSize: "13px", boxSizing: "border-box", opacity: cond.operator === "exists" ? 0.5 : 1 }}
+                    />
+                  </div>
+                  <button
+                    onClick={() => removePollConditionUpdate(idx)}
+                    style={{ padding: "7px 10px", borderRadius: "7px", border: "1px solid var(--border-color)", background: "transparent", color: "var(--status-error)", cursor: "pointer", fontSize: "16px", lineHeight: 1, flexShrink: 0 }}
+                    title="Remove condition"
+                  >×</button>
+                </div>
+              ))}
+              <button
+                onClick={addPollConditionUpdate}
+                style={{ alignSelf: "flex-start", padding: "6px 14px", borderRadius: "7px", border: "1px dashed var(--border-color)", background: "transparent", color: "var(--accent-primary)", cursor: "pointer", fontSize: "12px", fontWeight: "600" }}
+              >+ Add Condition</button>
             </div>
           </div>
         )}

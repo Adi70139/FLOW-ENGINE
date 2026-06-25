@@ -69,6 +69,10 @@ export const performanceApi = {
   rate: (runId) =>
     request(`/performance/${runId}/rate`),
 
+  /** GET /performance/{runId}/user-stats */
+  getUserStats: (runId) =>
+    request(`/performance/${runId}/user-stats`),
+
   /** GET /performance/history */
   getHistory: () =>
     request("/performance/history"),

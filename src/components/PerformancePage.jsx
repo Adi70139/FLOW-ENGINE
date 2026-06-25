@@ -27,6 +27,20 @@ const INITIAL_FORM = {
   soakDurationSeconds: 30,
 };
 
+const normalizeUserStats = (statsData) => {
+  return Array.isArray(statsData)
+    ? statsData.map((stat) => ({
+        userId: stat.userId !== undefined ? stat.userId : stat.userid,
+        totalRequests: stat.totalRequests !== undefined ? stat.totalRequests : stat.totalrequests,
+        successfulRequests: stat.successfulRequests !== undefined ? stat.successfulRequests : stat.successfulrequests,
+        failedRequests: stat.failedRequests !== undefined ? stat.failedRequests : stat.failedrequests,
+        avgLatencyMs: stat.avgLatencyMs !== undefined ? stat.avgLatencyMs : stat.avglatencyms,
+        minLatencyMs: stat.minLatencyMs !== undefined ? stat.minLatencyMs : stat.minlatencyms,
+        maxLatencyMs: stat.maxLatencyMs !== undefined ? stat.maxLatencyMs : stat.maxlatencyms,
+      }))
+    : [];
+};
+
 export default function PerformancePage() {
   const [history, setHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -59,6 +73,7 @@ export default function PerformancePage() {
   const [logLines, setLogLines] = useState([]);
   const [samples, setSamples] = useState([]);
   const [rating, setRating] = useState(null);
+  const [userStats, setUserStats] = useState([]);
 
   const sseRef = useRef(null);
   const logsTerminalRef = useRef(null);
@@ -111,6 +126,7 @@ export default function PerformancePage() {
     setLiveStats(run);
     setRating(null);
     setSamples([]);
+    setUserStats([]);
 
     // Stop any active SSE
     if (sseRef.current && typeof sseRef.current.close === "function") {
@@ -173,6 +189,12 @@ export default function PerformancePage() {
       if (run.status === "COMPLETED" || run.status === "SUCCESS") {
         const ratingData = await performanceApi.rate(run.id);
         setRating(ratingData);
+        try {
+          const statsData = await performanceApi.getUserStats(run.id);
+          setUserStats(normalizeUserStats(statsData));
+        } catch (e) {
+          console.error("Failed to load user stats:", e);
+        }
       }
     } catch (err) {
       console.error("Failed to load run details:", err);
@@ -323,6 +345,7 @@ export default function PerformancePage() {
     setSamples([]);
     setRating(null);
     setLiveStats(null);
+    setUserStats([]);
 
     // Parse headers
     let parsedHeaders = {};
@@ -472,6 +495,12 @@ export default function PerformancePage() {
                 setSamples(Array.isArray(sampleData) ? sampleData : []);
                 const ratingData = await performanceApi.rate(runId);
                 setRating(ratingData);
+                try {
+                  const statsData = await performanceApi.getUserStats(runId);
+                  setUserStats(normalizeUserStats(statsData));
+                } catch (e) {
+                  console.error("Failed to load user stats:", e);
+                }
               } catch (err) {
                 console.error("Failed to load completed report info:", err);
               }
@@ -1164,6 +1193,71 @@ export default function PerformancePage() {
                 <h4 style={{ margin: "0 0 8px 0", fontSize: "0.85rem", textTransform: "uppercase", color: "var(--text-muted)" }}>Latency Timeline</h4>
                 {renderChart()}
               </div>
+
+              {/* Virtual User Breakdown */}
+              {userStats && userStats.length > 0 && (
+                <div className={styles.userStatsContainer}>
+                  <h4 style={{ margin: "24px 0 8px 0", fontSize: "0.85rem", textTransform: "uppercase", color: "var(--text-muted)" }}>
+                    Virtual User Breakdown
+                  </h4>
+                  <div className={styles.statsTableContainer}>
+                    <table className={styles.statsTable}>
+                      <thead>
+                        <tr>
+                          <th style={{ textAlign: "left" }}>Virtual User</th>
+                          <th style={{ textAlign: "right" }}>Total Requests</th>
+                          <th style={{ textAlign: "left", paddingLeft: "24px" }}>Success / Failure Rate</th>
+                          <th style={{ textAlign: "right" }}>Avg Latency</th>
+                          <th style={{ textAlign: "right" }}>Min / Max Latency</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {userStats.map((stat) => {
+                          const total = stat.totalRequests || 0;
+                          const success = stat.successfulRequests || 0;
+                          const failed = stat.failedRequests || 0;
+                          const successPct = total > 0 ? (success / total) * 100 : 0;
+                          const failedPct = total > 0 ? (failed / total) * 100 : 0;
+
+                          return (
+                            <tr key={stat.userId}>
+                              <td style={{ fontWeight: "600", textAlign: "left" }}>VU #{stat.userId}</td>
+                              <td style={{ textAlign: "right", fontFamily: "var(--font-mono)" }}>{total}</td>
+                              <td>
+                                <div className={styles.breakdownProgressWrapper}>
+                                  <div className={styles.breakdownProgressBarBg}>
+                                    <div 
+                                      className={styles.breakdownProgressBarSuccess} 
+                                      style={{ width: `${successPct}%` }}
+                                      title={`Success: ${success} (${successPct.toFixed(1)}%)`}
+                                    />
+                                    <div 
+                                      className={styles.breakdownProgressBarFailure} 
+                                      style={{ width: `${failedPct}%` }}
+                                      title={`Failure: ${failed} (${failedPct.toFixed(1)}%)`}
+                                    />
+                                  </div>
+                                  <span className={styles.breakdownProgressLabel}>
+                                    <span style={{ color: "#10b981", fontWeight: "600" }}>{success}s</span>
+                                    <span style={{ color: "var(--text-muted)", margin: "0 4px" }}>/</span>
+                                    <span style={{ color: failed > 0 ? "#ef4444" : "var(--text-muted)", fontWeight: failed > 0 ? "600" : "normal" }}>{failed}f</span>
+                                  </span>
+                                </div>
+                              </td>
+                              <td style={{ textAlign: "right", fontFamily: "var(--font-mono)" }}>
+                                {stat.avgLatencyMs != null ? `${Number(stat.avgLatencyMs).toFixed(1)}ms` : "—"}
+                              </td>
+                              <td style={{ textAlign: "right", fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>
+                                {stat.minLatencyMs != null && stat.maxLatencyMs != null ? `${stat.minLatencyMs}ms - ${stat.maxLatencyMs}ms` : "—"}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
 
               {/* Ratings and Recommendations */}
               {rating && (
