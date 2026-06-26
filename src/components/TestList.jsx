@@ -7,6 +7,8 @@ import Modal from "./ui/modal/Modal";
 import Input from "./ui/input/Input";
 import Tabs from "./ui/tabs/Tabs";
 import Textarea from "./ui/textarea/Textarea";
+import { api } from "../utils/api";
+import Dropdown from "./ui/dropdown/Dropdown";
 import { parseCurl } from "../utils/parseCurl";
 import { IconStep, IconDelete, IconPlus, IconFlow, IconEdit, IconDuplicate } from "./ui/icons/Icons";
 import FlowTrends from "./FlowTrends";
@@ -600,6 +602,9 @@ function CreateStepModal({ onClose, flowId, addStep }) {
                 </div>
               </div>
               <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0 }}>Stop polling when the response body also satisfies these conditions (in addition to the status code).</p>
+              <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "4px 0 0 0", fontStyle: "italic" }}>
+                💡 Note: Once you save and run this step/flow, you can select response fields from a dropdown when updating settings.
+              </p>
               {pollConditions.map((cond, idx) => (
                 <div key={idx} style={{ display: "flex", gap: "8px", alignItems: "flex-end" }}>
                   <div style={{ flex: 2 }}>
@@ -688,6 +693,29 @@ function UpdateStepModal({ step, flowId, updateStep, onClose }) {
   })();
   const [pollConditionLogic, setPollConditionLogic] = useState(parsedPollCond?.logic || "AND");
   const [pollConditions, setPollConditions] = useState(parsedPollCond?.conditions || []);
+
+  const [availableFields, setAvailableFields] = useState(null);
+  const [fieldsError, setFieldsError] = useState("");
+  const [loadingFields, setLoadingFields] = useState(false);
+  const [customPathMode, setCustomPathMode] = useState({});
+
+  useEffect(() => {
+    if (pollUntilSuccess && step.id) {
+      setLoadingFields(true);
+      setFieldsError("");
+      api.getPollFields(flowId, step.id)
+        .then(data => {
+          setAvailableFields(data || {});
+        })
+        .catch(err => {
+          console.error("Failed to load poll fields:", err);
+          setFieldsError("Run the flow once to get the variables");
+        })
+        .finally(() => {
+          setLoadingFields(false);
+        });
+    }
+  }, [pollUntilSuccess, flowId, step.id]);
 
   function addPollConditionUpdate() {
     setPollConditions(prev => [...prev, { path: "", operator: "equals", value: "" }]);
@@ -891,18 +919,65 @@ function UpdateStepModal({ step, flowId, updateStep, onClose }) {
                 </div>
               </div>
               <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0 }}>Stop polling when the response body also satisfies these conditions (in addition to the status code).</p>
-              {pollConditions.map((cond, idx) => (
-                <div key={idx} style={{ display: "flex", gap: "8px", alignItems: "flex-end" }}>
-                  <div style={{ flex: 2 }}>
-                    <label style={{ fontSize: "11px", color: "var(--text-muted)", display: "block", marginBottom: "4px" }}>JSON Path</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. status or order.state"
-                      value={cond.path}
-                      onChange={(e) => updatePollConditionUpdate(idx, "path", e.target.value)}
-                      style={{ width: "100%", padding: "7px 10px", borderRadius: "7px", border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: "13px", boxSizing: "border-box" }}
-                    />
-                  </div>
+              {loadingFields && (
+                <span style={{ fontSize: "11px", color: "var(--text-muted)", fontStyle: "italic" }}>Loading response fields...</span>
+              )}
+              {fieldsError && (
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", margin: "4px 0", padding: "6px 10px", borderRadius: "6px", background: "rgba(245, 158, 11, 0.08)", border: "1px solid rgba(245, 158, 11, 0.2)" }}>
+                  <span style={{ color: "var(--status-warning, #f59e0b)", fontSize: "11px", fontWeight: "600" }}>
+                    ⚠️ {fieldsError}
+                  </span>
+                </div>
+              )}
+              {pollConditions.map((cond, idx) => {
+                const showDropdown = availableFields && !customPathMode[idx];
+                const dropdownOptions = Object.keys(availableFields || {}).map(path => ({
+                  label: `${path} (${availableFields[path]})`,
+                  value: path
+                }));
+
+                return (
+                  <div key={idx} style={{ display: "flex", gap: "8px", alignItems: "flex-end" }}>
+                    <div style={{ flex: 2 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                        <label style={{ fontSize: "11px", color: "var(--text-muted)" }}>JSON Path</label>
+                        {showDropdown ? (
+                          <button 
+                            type="button" 
+                            onClick={() => setCustomPathMode(prev => ({ ...prev, [idx]: true }))}
+                            style={{ background: "none", border: "none", color: "var(--accent-primary, #10b981)", cursor: "pointer", fontSize: "10px", padding: 0 }}
+                          >
+                            Type manually
+                          </button>
+                        ) : (
+                          availableFields && (
+                            <button 
+                              type="button" 
+                              onClick={() => setCustomPathMode(prev => ({ ...prev, [idx]: false }))}
+                              style={{ background: "none", border: "none", color: "var(--accent-primary, #10b981)", cursor: "pointer", fontSize: "10px", padding: 0 }}
+                            >
+                              Select from list
+                            </button>
+                          )
+                        )}
+                      </div>
+                      {showDropdown ? (
+                        <Dropdown
+                          options={dropdownOptions}
+                          value={cond.path}
+                          onChange={(val) => updatePollConditionUpdate(idx, "path", val)}
+                          placeholder={cond.path || "Select JSON Path..."}
+                        />
+                      ) : (
+                        <input
+                          type="text"
+                          placeholder="e.g. status or order.state"
+                          value={cond.path}
+                          onChange={(e) => updatePollConditionUpdate(idx, "path", e.target.value)}
+                          style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: "13px", boxSizing: "border-box" }}
+                        />
+                      )}
+                    </div>
                   <div style={{ flex: 1.5 }}>
                     <label style={{ fontSize: "11px", color: "var(--text-muted)", display: "block", marginBottom: "4px" }}>Operator</label>
                     <select
@@ -936,7 +1011,8 @@ function UpdateStepModal({ step, flowId, updateStep, onClose }) {
                     title="Remove condition"
                   >×</button>
                 </div>
-              ))}
+                );
+              })}
               <button
                 onClick={addPollConditionUpdate}
                 style={{ alignSelf: "flex-start", padding: "6px 14px", borderRadius: "7px", border: "1px dashed var(--border-color)", background: "transparent", color: "var(--accent-primary)", cursor: "pointer", fontSize: "12px", fontWeight: "600" }}

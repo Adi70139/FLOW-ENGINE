@@ -421,6 +421,7 @@ export const api = {
   // ── Steps ─────────────────────────────────────────────────────────────────
   getSteps: (flowId) => request(`/flows/${flowId}/steps`),
   getStep: (flowId, stepId) => request(`/flows/${flowId}/steps/${stepId}`),
+  getPollFields: (flowId, stepId) => request(`/flows/${flowId}/steps/${stepId}/poll-fields`),
   createStep: (flowId, test) =>
     request(`/flows/${flowId}/steps`, {
       method: "POST",
