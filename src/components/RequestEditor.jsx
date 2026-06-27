@@ -27,7 +27,7 @@ const REQUEST_TABS = [
 ];
 
 function RequestEditor() {
-  const { selectedStep, selectedFlow, selectedFlowId, selectedStepId, updateStep, createStepFromVariant, selectedEnv, selectedEnvId, dispatch } =
+  const { selectedStep, selectedFlow, selectedFlowId, selectedStepId, updateStep, createStepFromVariant, selectedModule, selectedEnv, selectedEnvId, dispatch } =
     useModules();
 
   const [activeTab, setActiveTab] = useState("headers");
@@ -114,6 +114,67 @@ function RequestEditor() {
 
   function update(patch) {
     updateStep(selectedFlowId, selectedStepId, patch);
+  }
+
+  function flattenJsonFields(value, prefix = "", result = {}) {
+    if (value === null || value === undefined) return result;
+    if (typeof value !== "object" || Array.isArray(value)) {
+      result[prefix] = value;
+      return result;
+    }
+
+    Object.entries(value).forEach(([key, nestedValue]) => {
+      const path = prefix ? `${prefix}.${key}` : key;
+      if (nestedValue !== null && typeof nestedValue === "object" && !Array.isArray(nestedValue)) {
+        flattenJsonFields(nestedValue, path, result);
+      } else {
+        result[path] = nestedValue;
+      }
+    });
+
+    return result;
+  }
+
+  function buildAutoCaptureMappings(responseBody) {
+    if (!responseBody) return [];
+    try {
+      const parsed = typeof responseBody === "string" ? JSON.parse(responseBody) : responseBody;
+      return Object.keys(flattenJsonFields(parsed))
+        .filter(Boolean)
+        .map((field) => ({
+          field,
+          envVarName: field.replace(/\./g, "_"),
+        }));
+    } catch {
+      return [];
+    }
+  }
+
+  async function refreshCapturedEnvironment(envId) {
+    if (!selectedModule?.id || !envId) return;
+    try {
+      const refreshed = await api.getEnvironment(selectedModule.id, envId);
+      const envs = (selectedModule.environments || []).map((env) =>
+        String(env.id) === String(envId) ? refreshed : env
+      );
+      dispatch({ type: "SET_ENVIRONMENTS", moduleId: selectedModule.id, environments: envs });
+    } catch (err) {
+      console.warn("Failed to refresh captured environment:", err);
+    }
+  }
+
+  async function autoCaptureResponseToEnv(envId, responseBody) {
+    if (!envId) return;
+    const mappings = buildAutoCaptureMappings(responseBody);
+    if (mappings.length === 0) return;
+
+    try {
+      await api.captureToEnv(selectedFlowId, selectedStepId, parseInt(envId), mappings);
+      await refreshCapturedEnvironment(envId);
+    } catch (err) {
+      console.warn("Auto capture to environment failed:", err);
+      toast.error("Environment capture failed: " + (err.message || err));
+    }
   }
 
   function handleSaveAssertions() {
@@ -217,6 +278,9 @@ function RequestEditor() {
 
     try {
       const result = await api.runStep(selectedFlowId, selectedStepId, envId);
+      const responseBodyText = typeof result.responseBody === "object" && result.responseBody !== null
+        ? JSON.stringify(result.responseBody)
+        : (result.responseBody ?? "");
 
       // Map StepExecutionResult → same shape the response panel expects
       const resHeaders = [];
@@ -228,8 +292,8 @@ function RequestEditor() {
           status: result.statusCode ?? 0,
           statusText: result.success ? "OK" : (result.errorMessage || "Error"),
           time: result.durationMs ?? 0,
-          size: result.responseBody ? new Blob([result.responseBody]).size : 0,
-          body: result.responseBody ?? "",
+          size: responseBodyText ? new Blob([responseBodyText]).size : 0,
+          body: responseBodyText,
           headers: resHeaders,
           resolvedUrl: result.resolvedUrl ?? selectedStep.endpoint,
           resolvedHeaders: (() => {
@@ -238,6 +302,8 @@ function RequestEditor() {
           resolvedBody: result.resolvedBodyJson ?? null,
         },
       });
+
+      await autoCaptureResponseToEnv(envId, responseBodyText);
 
       if (result.success) {
         toast.success(`Request completed — ${result.statusCode} (${result.durationMs}ms)`);

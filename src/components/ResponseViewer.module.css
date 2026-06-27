@@ -253,6 +253,170 @@
   background: rgba(255, 255, 255, 0.01);
 }
 
+/* ── Capture To Env ── */
+.capturePanel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 4px 0;
+}
+
+.captureControls {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(260px, 1.2fr) auto;
+  gap: 12px;
+  align-items: end;
+  padding: 0 4px;
+}
+
+.captureControlGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.captureLabel {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.captureSelect,
+.captureSearch {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 13px;
+  box-sizing: border-box;
+}
+
+.captureSelect {
+  cursor: pointer;
+}
+
+.captureSearch::placeholder {
+  color: var(--text-muted);
+}
+
+.captureActions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.captureActionBtn {
+  min-height: 38px;
+  padding: 7px 12px;
+  border-radius: 7px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--accent-primary, #10b981);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.captureActionBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.captureActionMuted {
+  color: var(--text-muted);
+}
+
+.captureSummary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  padding: 0 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.captureTableWrap {
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.captureHeader,
+.captureRow {
+  display: grid;
+  grid-template-columns: 64px minmax(220px, 1fr) minmax(240px, 1fr) minmax(180px, 240px);
+  min-width: 760px;
+  gap: 12px;
+  align-items: center;
+}
+
+.captureHeader {
+  background: var(--bg-tertiary, rgba(255,255,255,0.03));
+  border-bottom: 1px solid var(--border-color);
+  padding: 8px 12px;
+}
+
+.captureSelectHeader {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.captureRows {
+  max-height: 360px;
+  overflow-y: auto;
+  min-width: 760px;
+}
+
+.captureEmpty {
+  padding: 28px 16px;
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.captureRow {
+  padding: 9px 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.captureCheckboxCell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 24px;
+  cursor: pointer;
+}
+
+.captureCheckboxCell input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent-primary, #10b981);
+  cursor: pointer;
+}
+
+@media (max-width: 900px) {
+  .captureControls {
+    grid-template-columns: 1fr;
+  }
+
+  .captureActions {
+    justify-content: flex-start;
+  }
+}
+
 .requestMeta, .requestHeaders, .requestBody {
   display: flex;
   flex-direction: column;

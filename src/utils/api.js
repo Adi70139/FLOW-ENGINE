@@ -426,6 +426,11 @@ export const api = {
     const query = envId ? `?envId=${envId}` : "";
     return request(`/flows/${flowId}/steps/${stepId}/run${query}`, { method: "POST" });
   },
+  captureToEnv: (flowId, stepId, environmentId, mappings) =>
+    request(`/flows/${flowId}/steps/${stepId}/capture-to-env`, {
+      method: "POST",
+      body: JSON.stringify({ environmentId, mappings }),
+    }),
   createStep: (flowId, test) =>
     request(`/flows/${flowId}/steps`, {
       method: "POST",
