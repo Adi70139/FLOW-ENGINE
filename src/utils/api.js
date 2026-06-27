@@ -422,6 +422,10 @@ export const api = {
   getSteps: (flowId) => request(`/flows/${flowId}/steps`),
   getStep: (flowId, stepId) => request(`/flows/${flowId}/steps/${stepId}`),
   getPollFields: (flowId, stepId) => request(`/flows/${flowId}/steps/${stepId}/poll-fields`),
+  runStep: (flowId, stepId, envId) => {
+    const query = envId ? `?envId=${envId}` : "";
+    return request(`/flows/${flowId}/steps/${stepId}/run${query}`, { method: "POST" });
+  },
   createStep: (flowId, test) =>
     request(`/flows/${flowId}/steps`, {
       method: "POST",

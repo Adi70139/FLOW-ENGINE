@@ -27,7 +27,7 @@ const REQUEST_TABS = [
 ];
 
 function RequestEditor() {
-  const { selectedStep, selectedFlow, selectedFlowId, selectedStepId, updateStep, createStepFromVariant, selectedEnv, dispatch } =
+  const { selectedStep, selectedFlow, selectedFlowId, selectedStepId, updateStep, createStepFromVariant, selectedEnv, selectedEnvId, dispatch } =
     useModules();
 
   const [activeTab, setActiveTab] = useState("headers");
@@ -203,76 +203,62 @@ function RequestEditor() {
     });
   }
 
-  // ── Send request ──
+  // ── Send request via backend (POST /flows/{flowId}/steps/{stepId}/run) ──
   async function sendRequest() {
     if (!selectedStep.endpoint) return;
-    setLoading(true);
-    const startTime = performance.now();
-
-    const resolvedUrl = substitute(selectedStep.endpoint);
-    const resolvedHeaders = (selectedStep.headers || [])
-      .filter((h) => h.enabled !== false && h.key)
-      .reduce((acc, h) => {
-        acc[h.key] = substitute(h.value);
-        return acc;
-      }, {});
-
-    let resolvedBody = undefined;
-    const methodUpper = (selectedStep.method || "GET").toUpperCase();
-    if (["POST", "PUT", "PATCH", "DELETE"].includes(methodUpper)) {
-      // Use the current draft so the user can hit Send with unsaved edits.
-      resolvedBody = substitute(bodyDraft ?? selectedStep.payload);
+    if (!selectedFlowId || !selectedStepId) {
+      toast.error("Save the step first before running it.");
+      return;
     }
+    setLoading(true);
+
+    // Env priority: navbar dropdown → flow default → null (no env)
+    const envId = selectedEnvId || selectedFlow?.defaultEnvironmentId || null;
 
     try {
-      const opts = {
-        method: selectedStep.method || "GET",
-        headers: resolvedHeaders,
-      };
+      const result = await api.runStep(selectedFlowId, selectedStepId, envId);
 
-      if (resolvedBody !== undefined) {
-        opts.body = resolvedBody;
-      }
-
-      const res = await fetch(resolvedUrl, opts);
-      const text = await res.text();
-      const elapsed = Math.round(performance.now() - startTime);
-
+      // Map StepExecutionResult → same shape the response panel expects
       const resHeaders = [];
-      res.headers.forEach((value, key) => {
-        resHeaders.push({ key, value });
-      });
+      // Backend doesn't return response headers for individual step runs,
+      // but we keep the shape consistent for the rest of the UI.
 
       update({
         response: {
-          status: res.status,
-          statusText: res.statusText,
-          time: elapsed,
-          size: new Blob([text]).size,
-          body: text,
+          status: result.statusCode ?? 0,
+          statusText: result.success ? "OK" : (result.errorMessage || "Error"),
+          time: result.durationMs ?? 0,
+          size: result.responseBody ? new Blob([result.responseBody]).size : 0,
+          body: result.responseBody ?? "",
           headers: resHeaders,
-          resolvedUrl: resolvedUrl,
-          resolvedHeaders: resolvedHeaders,
-          resolvedBody: resolvedBody
+          resolvedUrl: result.resolvedUrl ?? selectedStep.endpoint,
+          resolvedHeaders: (() => {
+            try { return result.resolvedHeadersJson ? JSON.parse(result.resolvedHeadersJson) : {}; } catch { return {}; }
+          })(),
+          resolvedBody: result.resolvedBodyJson ?? null,
         },
       });
-      toast.success("Request completed");
+
+      if (result.success) {
+        toast.success(`Request completed — ${result.statusCode} (${result.durationMs}ms)`);
+      } else {
+        toast.error(`Request failed — ${result.statusCode ?? "no response"}: ${result.errorMessage || ""}`);
+      }
     } catch (e) {
-      const elapsed = Math.round(performance.now() - startTime);
       update({
         response: {
           status: 0,
           statusText: "Network Error",
-          time: elapsed,
+          time: 0,
           size: 0,
           body: `Error: ${String(e.message || e)}`,
           headers: [],
-          resolvedUrl: resolvedUrl,
-          resolvedHeaders: resolvedHeaders,
-          resolvedBody: resolvedBody
+          resolvedUrl: selectedStep.endpoint,
+          resolvedHeaders: {},
+          resolvedBody: null,
         },
       });
-      toast.error("Request failed");
+      toast.error("Request failed: " + (e.message || e));
     } finally {
       setLoading(false);
     }
