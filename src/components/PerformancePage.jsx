@@ -17,6 +17,7 @@ const INITIAL_FORM = {
   body: "",
   description: "",
   payloadList: [],
+  prerequisiteChain: [],
   testType: "LOAD",
   virtualUsers: 5,
   durationSeconds: 15,
@@ -42,6 +43,37 @@ const normalizeUserStats = (statsData) => {
       }))
     : [];
 };
+
+function parsePrerequisiteChain(source) {
+  if (Array.isArray(source?.prerequisiteChain)) return source.prerequisiteChain;
+  const raw = source?.prerequisiteChainJson;
+  if (!raw) return [];
+  try {
+    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function normalizePrerequisiteChain(chain, savedApis = []) {
+  return (Array.isArray(chain) ? chain : [])
+    .map((step) => {
+      const apiId = step?.apiId ? parseInt(step.apiId) : null;
+      if (!apiId) return null;
+      const savedApi = savedApis.find((api) => String(api.id) === String(apiId));
+      const normalized = {
+        apiId,
+        name: step.name || savedApi?.name || `API #${apiId}`,
+        captures: Array.isArray(step.captures) ? step.captures : [],
+      };
+      if (step.payloadIndex !== "" && step.payloadIndex !== null && step.payloadIndex !== undefined) {
+        normalized.payloadIndex = parseInt(step.payloadIndex) || 0;
+      }
+      return normalized;
+    })
+    .filter(Boolean);
+}
 
 export default function PerformancePage() {
   const [history, setHistory] = useState([]);
@@ -170,6 +202,7 @@ export default function PerformancePage() {
       body: run.resolvedBodyJson || run.body || "",
       description: "",
       payloadList: payloads,
+      prerequisiteChain: normalizePrerequisiteChain(parsePrerequisiteChain(run), savedApis),
       testType: run.testType || "LOAD",
       virtualUsers: run.virtualUsers || 5,
       durationSeconds: run.durationSeconds || 15,
@@ -234,6 +267,7 @@ export default function PerformancePage() {
       body: api.bodyJson || api.body || "",
       description: api.description || "",
       payloadList: payloads,
+      prerequisiteChain: normalizePrerequisiteChain(parsePrerequisiteChain(api), savedApis),
     }));
   }
 
@@ -268,6 +302,7 @@ export default function PerformancePage() {
       headers: parsedHeaders,
       body: form.body || null,
       payloadList: cleanedPayloads,
+      prerequisiteChain: normalizePrerequisiteChain(form.prerequisiteChain, savedApis),
     };
 
     try {
@@ -301,6 +336,56 @@ export default function PerformancePage() {
 
   function handleInputChange(name, value) {
     setForm((prev) => ({ ...prev, [name]: value }));
+  }
+
+  function getAvailablePrerequisiteApis(currentIndex = null) {
+    const selectedIds = new Set(
+      (form.prerequisiteChain || [])
+        .map((step, idx) => (idx === currentIndex ? null : String(step.apiId)))
+        .filter(Boolean)
+    );
+    return savedApis.filter((api) => {
+      if (selectedApi && String(api.id) === String(selectedApi.id)) return false;
+      return !selectedIds.has(String(api.id));
+    });
+  }
+
+  function handleAddPrerequisite() {
+    const available = getAvailablePrerequisiteApis();
+    if (available.length === 0) {
+      toast.error("No more saved APIs available to attach.");
+      return;
+    }
+    const api = available[0];
+    handleInputChange("prerequisiteChain", [
+      ...(form.prerequisiteChain || []),
+      { apiId: api.id, name: api.name, captures: [], payloadIndex: null },
+    ]);
+  }
+
+  function handlePrerequisiteChange(index, patch) {
+    const next = [...(form.prerequisiteChain || [])];
+    const current = next[index] || {};
+    let updated = { ...current, ...patch };
+    if (patch.apiId) {
+      const api = savedApis.find((item) => String(item.id) === String(patch.apiId));
+      const apiChanged = String(current.apiId || "") !== String(patch.apiId);
+      updated = {
+        ...updated,
+        apiId: parseInt(patch.apiId),
+        name: api?.name || current.name || `API #${patch.apiId}`,
+        captures: apiChanged ? [] : (current.captures || []),
+      };
+    }
+    next[index] = updated;
+    handleInputChange("prerequisiteChain", next);
+  }
+
+  function handleRemovePrerequisite(index) {
+    handleInputChange(
+      "prerequisiteChain",
+      (form.prerequisiteChain || []).filter((_, idx) => idx !== index)
+    );
   }
 
   // Handle importing a cURL command
@@ -373,6 +458,7 @@ export default function PerformancePage() {
       headers: parsedHeaders,
       body: form.body || null,
       payloadList: cleanedPayloads,
+      prerequisiteChain: normalizePrerequisiteChain(form.prerequisiteChain, savedApis),
       testType: form.testType,
       virtualUsers: parseInt(form.virtualUsers) || 1,
       durationSeconds: parseInt(form.durationSeconds) || 5,
@@ -751,6 +837,11 @@ export default function PerformancePage() {
                       </div>
                     )}
                     <div className={styles.historyUrl}>{api.method} {api.url}</div>
+                    {parsePrerequisiteChain(api).length > 0 && (
+                      <div className={styles.historyMeta}>
+                        <span>{parsePrerequisiteChain(api).length} prerequisite API{parsePrerequisiteChain(api).length > 1 ? "s" : ""}</span>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -996,6 +1087,84 @@ export default function PerformancePage() {
                 >
                   + Add VU Payload
                 </Button>
+              </div>
+
+              <div className={styles.chainPanel}>
+                <div className={styles.chainHeader}>
+                  <div>
+                    <label className={styles.chainTitle}>Prerequisite API Chain</label>
+                    <p className={styles.chainHint}>Attach saved APIs to run before this API. They execute in the order shown.</p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="small"
+                    onClick={handleAddPrerequisite}
+                    disabled={getAvailablePrerequisiteApis().length === 0}
+                  >
+                    + Attach API
+                  </Button>
+                </div>
+
+                {(!form.prerequisiteChain || form.prerequisiteChain.length === 0) ? (
+                  <div className={styles.chainEmpty}>
+                    No prerequisite APIs attached.
+                  </div>
+                ) : (
+                  <div className={styles.chainList}>
+                    {form.prerequisiteChain.map((step, idx) => {
+                      const options = [
+                        ...getAvailablePrerequisiteApis(idx),
+                        ...savedApis.filter((api) => String(api.id) === String(step.apiId)),
+                      ];
+                      const uniqueOptions = options.filter(
+                        (api, optionIdx, arr) => arr.findIndex((item) => String(item.id) === String(api.id)) === optionIdx
+                      );
+
+                      return (
+                        <div key={`${step.apiId}-${idx}`} className={styles.chainRow}>
+                          <span className={styles.chainOrder}>{idx + 1}</span>
+                          <div className={styles.chainFields}>
+                            <div className={styles.formGroup}>
+                              <label className={styles.label}>Saved API</label>
+                              <select
+                                className={styles.select}
+                                value={step.apiId || ""}
+                                onChange={(e) => handlePrerequisiteChange(idx, { apiId: e.target.value })}
+                              >
+                                {uniqueOptions.map((api) => (
+                                  <option key={api.id} value={api.id}>
+                                    {api.name} ({api.method})
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className={styles.formGroup}>
+                              <label className={styles.label}>Payload Index</label>
+                              <Input
+                                type="number"
+                                min="0"
+                                value={step.payloadIndex ?? ""}
+                                onChange={(e) => handlePrerequisiteChange(idx, {
+                                  payloadIndex: e.target.value === "" ? null : parseInt(e.target.value) || 0,
+                                })}
+                                placeholder="Optional"
+                              />
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            className={styles.chainRemove}
+                            onClick={() => handleRemovePrerequisite(idx)}
+                            title="Remove prerequisite"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               <div className={styles.formGrid}>
