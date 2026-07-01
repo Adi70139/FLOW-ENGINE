@@ -65,13 +65,39 @@ function normalizePrerequisiteChain(chain, savedApis = []) {
       const normalized = {
         apiId,
         name: step.name || savedApi?.name || `API #${apiId}`,
-        captures: Array.isArray(step.captures) ? step.captures : [],
+        captures: normalizeCaptures(step.captures),
       };
       if (step.payloadIndex !== "" && step.payloadIndex !== null && step.payloadIndex !== undefined) {
         normalized.payloadIndex = parseInt(step.payloadIndex) || 0;
       }
       return normalized;
     })
+    .filter(Boolean);
+}
+
+function fieldToUpperSnakePlaceholder(field) {
+  const key = String(field || "")
+    .replace(/\[(\d+)\]/g, "_$1")
+    .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
+    .replace(/[^a-zA-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .toUpperCase();
+  return key ? `{{${key}}}` : "";
+}
+
+function normalizeCapture(capture) {
+  if (!capture?.field) return null;
+  const fallback = fieldToUpperSnakePlaceholder(capture.field);
+  const rawName = String(capture.as || fallback);
+  const as = rawName.startsWith("{{")
+    ? rawName
+    : `{{${rawName.replace(/^_+|_+$/g, "").toUpperCase()}}}`;
+  return { field: capture.field, as };
+}
+
+function normalizeCaptures(captures = []) {
+  return (Array.isArray(captures) ? captures : [])
+    .map(normalizeCapture)
     .filter(Boolean);
 }
 
@@ -96,6 +122,8 @@ export default function PerformancePage() {
   // Form fields
   const [form, setForm] = useState(INITIAL_FORM);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [testingPrereqIndex, setTestingPrereqIndex] = useState(null);
+  const [prereqTestResults, setPrereqTestResults] = useState({});
 
   // cURL import toggle and string
   const [showCurlInput, setShowCurlInput] = useState(false);
@@ -376,6 +404,13 @@ export default function PerformancePage() {
         name: api?.name || current.name || `API #${patch.apiId}`,
         captures: apiChanged ? [] : (current.captures || []),
       };
+      if (apiChanged) {
+        setPrereqTestResults((prev) => {
+          const nextResults = { ...prev };
+          delete nextResults[index];
+          return nextResults;
+        });
+      }
     }
     next[index] = updated;
     handleInputChange("prerequisiteChain", next);
@@ -386,6 +421,52 @@ export default function PerformancePage() {
       "prerequisiteChain",
       (form.prerequisiteChain || []).filter((_, idx) => idx !== index)
     );
+  }
+
+  async function handleTestPrerequisite(index) {
+    const step = form.prerequisiteChain?.[index];
+    if (!step?.apiId) {
+      toast.error("Select a saved API first.");
+      return;
+    }
+
+    setTestingPrereqIndex(index);
+    try {
+      const result = await performanceApi.testApi(step.apiId);
+      setPrereqTestResults((prev) => ({ ...prev, [index]: result || {} }));
+      if (result?.success === false) {
+        toast.error(result.error || "Prerequisite API test failed.");
+      } else {
+        const count = Object.keys(result?.availableFields || {}).length;
+        toast.success(`Prerequisite tested. ${count} field${count === 1 ? "" : "s"} available.`);
+      }
+    } catch (err) {
+      toast.error("Failed to test prerequisite API: " + err.message);
+    } finally {
+      setTestingPrereqIndex(null);
+    }
+  }
+
+  function handleAddCapture(index, field) {
+    if (!field) return;
+    const current = form.prerequisiteChain?.[index];
+    if (!current) return;
+    const existing = current.captures || [];
+    if (existing.some((capture) => capture.field === field)) return;
+    handlePrerequisiteChange(index, {
+      captures: [
+        ...existing,
+        { field, as: fieldToUpperSnakePlaceholder(field) },
+      ],
+    });
+  }
+
+  function handleRemoveCapture(index, field) {
+    const current = form.prerequisiteChain?.[index];
+    if (!current) return;
+    handlePrerequisiteChange(index, {
+      captures: (current.captures || []).filter((capture) => capture.field !== field),
+    });
   }
 
   // Handle importing a cURL command
@@ -1113,6 +1194,11 @@ export default function PerformancePage() {
                 ) : (
                   <div className={styles.chainList}>
                     {form.prerequisiteChain.map((step, idx) => {
+                      const testResult = prereqTestResults[idx] || {};
+                      const availableFields = testResult.availableFields || {};
+                      const availableFieldNames = Object.keys(availableFields);
+                      const capturedFields = new Set((step.captures || []).map((capture) => capture.field));
+                      const uncapturedFieldNames = availableFieldNames.filter((field) => !capturedFields.has(field));
                       const options = [
                         ...getAvailablePrerequisiteApis(idx),
                         ...savedApis.filter((api) => String(api.id) === String(step.apiId)),
@@ -1151,6 +1237,58 @@ export default function PerformancePage() {
                                 placeholder="Optional"
                               />
                             </div>
+                          </div>
+                          <div className={styles.chainCaptureArea}>
+                            <div className={styles.chainCaptureToolbar}>
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                size="small"
+                                onClick={() => handleTestPrerequisite(idx)}
+                                disabled={testingPrereqIndex === idx}
+                              >
+                                {testingPrereqIndex === idx ? "Running..." : "Run API"}
+                              </Button>
+                              <select
+                                className={styles.chainFieldSelect}
+                                value=""
+                                onChange={(e) => handleAddCapture(idx, e.target.value)}
+                                disabled={uncapturedFieldNames.length === 0}
+                              >
+                                <option value="">
+                                  {availableFieldNames.length === 0
+                                    ? "Run API to load fields"
+                                    : uncapturedFieldNames.length === 0
+                                      ? "All fields selected"
+                                      : "Select response field"}
+                                </option>
+                                {uncapturedFieldNames.map((field) => (
+                                  <option key={field} value={field}>
+                                    {field} - {availableFields[field]}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            {(step.captures || []).length > 0 && (
+                              <div className={styles.chainCaptureList}>
+                                {(step.captures || []).map((capture) => (
+                                  <div key={capture.field} className={styles.chainCaptureItem}>
+                                    <span className={styles.chainCaptureField}>{capture.field}</span>
+                                    <span className={styles.chainCaptureArrow}>→</span>
+                                    <code className={styles.chainCaptureName}>{capture.as}</code>
+                                    <button
+                                      type="button"
+                                      className={styles.chainCaptureRemove}
+                                      onClick={() => handleRemoveCapture(idx, capture.field)}
+                                      title="Remove captured field"
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
                           <button
                             type="button"

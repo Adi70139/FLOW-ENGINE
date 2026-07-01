@@ -92,6 +92,12 @@ export const performanceApi = {
   getApiById: (id) =>
     request(`/performance/apis/${id}`),
 
+  /** POST /performance/apis/{id}/test */
+  testApi: (id) =>
+    request(`/performance/apis/${id}/test`, {
+      method: "POST",
+    }),
+
   /** POST /performance/apis */
   createApi: (apiData) =>
     request("/performance/apis", {
@@ -112,4 +118,3 @@ export const performanceApi = {
       method: "DELETE",
     }),
 };
-
